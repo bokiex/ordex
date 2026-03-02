@@ -6,7 +6,8 @@
 		"dev": "vite dev --port 3000",
 		"build": "vite build",
 		"preview": "vite preview",
-		"test": "vitest run"
+		"test": "vitest run",
+		"lint": "biome check --write --no-errors-on-unmatched --error-on-warnings --files-ignore-unknown=true --unsafe"
 	},
 	"dependencies": {
 		"@heroui/react": "^2.8.9",
@@ -36,6 +37,7 @@
 		"@types/react-dom": "^19.2.0",
 		"@vitejs/plugin-react": "^5.0.4",
 		"jsdom": "^27.0.0",
+		"lefthook": "^2.1.2",
 		"typescript": "^5.7.2",
 		"vite": "^7.1.7",
 		"vitest": "^3.0.5"
