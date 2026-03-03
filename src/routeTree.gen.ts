@@ -9,12 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from "./routes/__root";
+import { Route as ApiParseOrderRouteImport } from "./routes/api/parse-order";
 import { Route as ApiWebhookWhatsappRouteImport } from "./routes/api/webhook.whatsapp";
 import { Route as IndexRouteImport } from "./routes/index";
 
 const IndexRoute = IndexRouteImport.update({
 	id: "/",
 	path: "/",
+	getParentRoute: () => rootRouteImport,
+} as any);
+const ApiParseOrderRoute = ApiParseOrderRouteImport.update({
+	id: "/api/parse-order",
+	path: "/api/parse-order",
 	getParentRoute: () => rootRouteImport,
 } as any);
 const ApiWebhookWhatsappRoute = ApiWebhookWhatsappRouteImport.update({
@@ -25,27 +31,31 @@ const ApiWebhookWhatsappRoute = ApiWebhookWhatsappRouteImport.update({
 
 export interface FileRoutesByFullPath {
 	"/": typeof IndexRoute;
+	"/api/parse-order": typeof ApiParseOrderRoute;
 	"/api/webhook/whatsapp": typeof ApiWebhookWhatsappRoute;
 }
 export interface FileRoutesByTo {
 	"/": typeof IndexRoute;
+	"/api/parse-order": typeof ApiParseOrderRoute;
 	"/api/webhook/whatsapp": typeof ApiWebhookWhatsappRoute;
 }
 export interface FileRoutesById {
 	__root__: typeof rootRouteImport;
 	"/": typeof IndexRoute;
+	"/api/parse-order": typeof ApiParseOrderRoute;
 	"/api/webhook/whatsapp": typeof ApiWebhookWhatsappRoute;
 }
 export interface FileRouteTypes {
 	fileRoutesByFullPath: FileRoutesByFullPath;
-	fullPaths: "/" | "/api/webhook/whatsapp";
+	fullPaths: "/" | "/api/parse-order" | "/api/webhook/whatsapp";
 	fileRoutesByTo: FileRoutesByTo;
-	to: "/" | "/api/webhook/whatsapp";
-	id: "__root__" | "/" | "/api/webhook/whatsapp";
+	to: "/" | "/api/parse-order" | "/api/webhook/whatsapp";
+	id: "__root__" | "/" | "/api/parse-order" | "/api/webhook/whatsapp";
 	fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
 	IndexRoute: typeof IndexRoute;
+	ApiParseOrderRoute: typeof ApiParseOrderRoute;
 	ApiWebhookWhatsappRoute: typeof ApiWebhookWhatsappRoute;
 }
 
@@ -56,6 +66,13 @@ declare module "@tanstack/react-router" {
 			path: "/";
 			fullPath: "/";
 			preLoaderRoute: typeof IndexRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		"/api/parse-order": {
+			id: "/api/parse-order";
+			path: "/api/parse-order";
+			fullPath: "/api/parse-order";
+			preLoaderRoute: typeof ApiParseOrderRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
 		"/api/webhook/whatsapp": {
@@ -70,6 +87,7 @@ declare module "@tanstack/react-router" {
 
 const rootRouteChildren: RootRouteChildren = {
 	IndexRoute: IndexRoute,
+	ApiParseOrderRoute: ApiParseOrderRoute,
 	ApiWebhookWhatsappRoute: ApiWebhookWhatsappRoute,
 };
 export const routeTree = rootRouteImport
