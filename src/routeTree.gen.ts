@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from "./routes/__root";
+import { Route as ApiWebhookWhatsappRouteImport } from "./routes/api/webhook.whatsapp";
 import { Route as IndexRouteImport } from "./routes/index";
 
 const IndexRoute = IndexRouteImport.update({
@@ -16,27 +17,36 @@ const IndexRoute = IndexRouteImport.update({
 	path: "/",
 	getParentRoute: () => rootRouteImport,
 } as any);
+const ApiWebhookWhatsappRoute = ApiWebhookWhatsappRouteImport.update({
+	id: "/api/webhook/whatsapp",
+	path: "/api/webhook/whatsapp",
+	getParentRoute: () => rootRouteImport,
+} as any);
 
 export interface FileRoutesByFullPath {
 	"/": typeof IndexRoute;
+	"/api/webhook/whatsapp": typeof ApiWebhookWhatsappRoute;
 }
 export interface FileRoutesByTo {
 	"/": typeof IndexRoute;
+	"/api/webhook/whatsapp": typeof ApiWebhookWhatsappRoute;
 }
 export interface FileRoutesById {
 	__root__: typeof rootRouteImport;
 	"/": typeof IndexRoute;
+	"/api/webhook/whatsapp": typeof ApiWebhookWhatsappRoute;
 }
 export interface FileRouteTypes {
 	fileRoutesByFullPath: FileRoutesByFullPath;
-	fullPaths: "/";
+	fullPaths: "/" | "/api/webhook/whatsapp";
 	fileRoutesByTo: FileRoutesByTo;
-	to: "/";
-	id: "__root__" | "/";
+	to: "/" | "/api/webhook/whatsapp";
+	id: "__root__" | "/" | "/api/webhook/whatsapp";
 	fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
 	IndexRoute: typeof IndexRoute;
+	ApiWebhookWhatsappRoute: typeof ApiWebhookWhatsappRoute;
 }
 
 declare module "@tanstack/react-router" {
@@ -48,18 +58,26 @@ declare module "@tanstack/react-router" {
 			preLoaderRoute: typeof IndexRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
+		"/api/webhook/whatsapp": {
+			id: "/api/webhook/whatsapp";
+			path: "/api/webhook/whatsapp";
+			fullPath: "/api/webhook/whatsapp";
+			preLoaderRoute: typeof ApiWebhookWhatsappRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
 	}
 }
 
 const rootRouteChildren: RootRouteChildren = {
 	IndexRoute: IndexRoute,
+	ApiWebhookWhatsappRoute: ApiWebhookWhatsappRoute,
 };
 export const routeTree = rootRouteImport
 	._addFileChildren(rootRouteChildren)
 	._addFileTypes<FileRouteTypes>();
 
 import type { getRouter } from "./router.tsx";
-import type { createStart } from "@tanstack/react-start";
+
 declare module "@tanstack/react-start" {
 	interface Register {
 		ssr: true;
