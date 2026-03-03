@@ -115,6 +115,24 @@ Line-item fields:
 
 - `scripts/parse-excel.ts` - Dumps structure and sample data from all Excel files (run with `bun run scripts/parse-excel.ts`)
 
+## Development Rules
+
+- Code must build (`bun run build`) and pass tests (`bun run test`) before committing
+- Write unit tests for all new modules
+- Commit after each completed Linear issue
+- Use TanStack Start `server.handlers` for API routes (not `createServerFn` for webhooks)
+- Biome linter runs on pre-commit via lefthook; auto-generated files excluded via `overrides`
+
+## API Routes
+
+- `GET/POST /api/webhook/whatsapp` — WhatsApp Cloud API webhook (verification + incoming messages)
+- `POST /api/parse-order` — AI order parser via Ollama (accepts `{ message: string, date?: string }`)
+
+## Key Modules
+
+- `src/lib/whatsapp/` — WhatsApp Cloud API types, mock payloads, message extraction
+- `src/lib/parser/` — AI order parser (Ollama client, prompt template, validation)
+
 ## Linear Sync Rule
 
 **After any Linear issue is created, updated, or its status/title changes, you MUST:**
@@ -136,8 +154,8 @@ Do this automatically — do not wait to be asked.
 | ORD-5 | Tech Stack Decision | High | **Done** | All deps installed, configs in place |
 | ORD-12 | Environment Setup | Urgent | **In Progress** | Packages + .env + drizzle.config done; needs schema + migrations + seed |
 | ORD-11 | Database Schema (Drizzle) | High | Backlog | Blocked on ORD-12 completion |
-| ORD-6 | WhatsApp Integration (Mock) | High | Backlog | No API routes yet |
-| ORD-7 | AI Order Parser (Ollama) | High | Backlog | Use qwen2.5:7b via Ollama REST API |
+| ORD-6 | WhatsApp Integration (Mock) | High | **Done** | Webhook GET/POST, types, mock payloads, 7 tests |
+| ORD-7 | AI Order Parser (Ollama) | High | **Done** | Ollama client, prompt, validation, 10 tests |
 | ORD-8 | Product Catalogue (DB) | Medium | Backlog | Excel data parsed, needs DB tables + seed |
 | ORD-9 | Order Parser UI | Medium | Backlog | HeroUI ready, only placeholder route |
 | ORD-10 | Excel Export (Invoice) | High | Backlog | SheetJS installed, no export logic |
