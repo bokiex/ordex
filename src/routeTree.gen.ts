@@ -9,10 +9,45 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from "./routes/__root";
+import { Route as ApiDebtorsRouteImport } from "./routes/api/debtors";
+import { Route as ApiDebtorsCodeRouteImport } from "./routes/api/debtors.$code";
+import { Route as ApiInvoicesRouteImport } from "./routes/api/invoices";
+import { Route as ApiInvoicesDocNoRouteImport } from "./routes/api/invoices.$docNo";
+import { Route as ApiItemsRouteImport } from "./routes/api/items";
+import { Route as ApiItemsCodeRouteImport } from "./routes/api/items.$code";
+import { Route as ApiOrderItemsIdRouteImport } from "./routes/api/order-items.$id";
+import { Route as ApiOrdersRouteImport } from "./routes/api/orders";
+import { Route as ApiOrdersIdRouteImport } from "./routes/api/orders.$id";
+import { Route as ApiOrdersIdConfirmRouteImport } from "./routes/api/orders.$id.confirm";
+import { Route as ApiOrdersIdItemsRouteImport } from "./routes/api/orders.$id.items";
 import { Route as ApiParseOrderRouteImport } from "./routes/api/parse-order";
 import { Route as ApiWebhookWhatsappRouteImport } from "./routes/api/webhook.whatsapp";
+import { Route as CustomersRouteImport } from "./routes/customers";
 import { Route as IndexRouteImport } from "./routes/index";
+import { Route as InvoicesRouteImport } from "./routes/invoices";
+import { Route as ItemsRouteImport } from "./routes/items";
+import { Route as OrdersRouteImport } from "./routes/orders";
 
+const OrdersRoute = OrdersRouteImport.update({
+	id: "/orders",
+	path: "/orders",
+	getParentRoute: () => rootRouteImport,
+} as any);
+const ItemsRoute = ItemsRouteImport.update({
+	id: "/items",
+	path: "/items",
+	getParentRoute: () => rootRouteImport,
+} as any);
+const InvoicesRoute = InvoicesRouteImport.update({
+	id: "/invoices",
+	path: "/invoices",
+	getParentRoute: () => rootRouteImport,
+} as any);
+const CustomersRoute = CustomersRouteImport.update({
+	id: "/customers",
+	path: "/customers",
+	getParentRoute: () => rootRouteImport,
+} as any);
 const IndexRoute = IndexRouteImport.update({
 	id: "/",
 	path: "/",
@@ -23,44 +58,236 @@ const ApiParseOrderRoute = ApiParseOrderRouteImport.update({
 	path: "/api/parse-order",
 	getParentRoute: () => rootRouteImport,
 } as any);
+const ApiOrdersRoute = ApiOrdersRouteImport.update({
+	id: "/api/orders",
+	path: "/api/orders",
+	getParentRoute: () => rootRouteImport,
+} as any);
+const ApiItemsRoute = ApiItemsRouteImport.update({
+	id: "/api/items",
+	path: "/api/items",
+	getParentRoute: () => rootRouteImport,
+} as any);
+const ApiInvoicesRoute = ApiInvoicesRouteImport.update({
+	id: "/api/invoices",
+	path: "/api/invoices",
+	getParentRoute: () => rootRouteImport,
+} as any);
+const ApiDebtorsRoute = ApiDebtorsRouteImport.update({
+	id: "/api/debtors",
+	path: "/api/debtors",
+	getParentRoute: () => rootRouteImport,
+} as any);
 const ApiWebhookWhatsappRoute = ApiWebhookWhatsappRouteImport.update({
 	id: "/api/webhook/whatsapp",
 	path: "/api/webhook/whatsapp",
 	getParentRoute: () => rootRouteImport,
 } as any);
+const ApiOrdersIdRoute = ApiOrdersIdRouteImport.update({
+	id: "/$id",
+	path: "/$id",
+	getParentRoute: () => ApiOrdersRoute,
+} as any);
+const ApiOrderItemsIdRoute = ApiOrderItemsIdRouteImport.update({
+	id: "/api/order-items/$id",
+	path: "/api/order-items/$id",
+	getParentRoute: () => rootRouteImport,
+} as any);
+const ApiItemsCodeRoute = ApiItemsCodeRouteImport.update({
+	id: "/$code",
+	path: "/$code",
+	getParentRoute: () => ApiItemsRoute,
+} as any);
+const ApiInvoicesDocNoRoute = ApiInvoicesDocNoRouteImport.update({
+	id: "/$docNo",
+	path: "/$docNo",
+	getParentRoute: () => ApiInvoicesRoute,
+} as any);
+const ApiDebtorsCodeRoute = ApiDebtorsCodeRouteImport.update({
+	id: "/$code",
+	path: "/$code",
+	getParentRoute: () => ApiDebtorsRoute,
+} as any);
+const ApiOrdersIdItemsRoute = ApiOrdersIdItemsRouteImport.update({
+	id: "/items",
+	path: "/items",
+	getParentRoute: () => ApiOrdersIdRoute,
+} as any);
+const ApiOrdersIdConfirmRoute = ApiOrdersIdConfirmRouteImport.update({
+	id: "/confirm",
+	path: "/confirm",
+	getParentRoute: () => ApiOrdersIdRoute,
+} as any);
 
 export interface FileRoutesByFullPath {
 	"/": typeof IndexRoute;
+	"/customers": typeof CustomersRoute;
+	"/invoices": typeof InvoicesRoute;
+	"/items": typeof ItemsRoute;
+	"/orders": typeof OrdersRoute;
+	"/api/debtors": typeof ApiDebtorsRouteWithChildren;
+	"/api/invoices": typeof ApiInvoicesRouteWithChildren;
+	"/api/items": typeof ApiItemsRouteWithChildren;
+	"/api/orders": typeof ApiOrdersRouteWithChildren;
 	"/api/parse-order": typeof ApiParseOrderRoute;
+	"/api/debtors/$code": typeof ApiDebtorsCodeRoute;
+	"/api/invoices/$docNo": typeof ApiInvoicesDocNoRoute;
+	"/api/items/$code": typeof ApiItemsCodeRoute;
+	"/api/order-items/$id": typeof ApiOrderItemsIdRoute;
+	"/api/orders/$id": typeof ApiOrdersIdRouteWithChildren;
 	"/api/webhook/whatsapp": typeof ApiWebhookWhatsappRoute;
+	"/api/orders/$id/confirm": typeof ApiOrdersIdConfirmRoute;
+	"/api/orders/$id/items": typeof ApiOrdersIdItemsRoute;
 }
 export interface FileRoutesByTo {
 	"/": typeof IndexRoute;
+	"/customers": typeof CustomersRoute;
+	"/invoices": typeof InvoicesRoute;
+	"/items": typeof ItemsRoute;
+	"/orders": typeof OrdersRoute;
+	"/api/debtors": typeof ApiDebtorsRouteWithChildren;
+	"/api/invoices": typeof ApiInvoicesRouteWithChildren;
+	"/api/items": typeof ApiItemsRouteWithChildren;
+	"/api/orders": typeof ApiOrdersRouteWithChildren;
 	"/api/parse-order": typeof ApiParseOrderRoute;
+	"/api/debtors/$code": typeof ApiDebtorsCodeRoute;
+	"/api/invoices/$docNo": typeof ApiInvoicesDocNoRoute;
+	"/api/items/$code": typeof ApiItemsCodeRoute;
+	"/api/order-items/$id": typeof ApiOrderItemsIdRoute;
+	"/api/orders/$id": typeof ApiOrdersIdRouteWithChildren;
 	"/api/webhook/whatsapp": typeof ApiWebhookWhatsappRoute;
+	"/api/orders/$id/confirm": typeof ApiOrdersIdConfirmRoute;
+	"/api/orders/$id/items": typeof ApiOrdersIdItemsRoute;
 }
 export interface FileRoutesById {
 	__root__: typeof rootRouteImport;
 	"/": typeof IndexRoute;
+	"/customers": typeof CustomersRoute;
+	"/invoices": typeof InvoicesRoute;
+	"/items": typeof ItemsRoute;
+	"/orders": typeof OrdersRoute;
+	"/api/debtors": typeof ApiDebtorsRouteWithChildren;
+	"/api/invoices": typeof ApiInvoicesRouteWithChildren;
+	"/api/items": typeof ApiItemsRouteWithChildren;
+	"/api/orders": typeof ApiOrdersRouteWithChildren;
 	"/api/parse-order": typeof ApiParseOrderRoute;
+	"/api/debtors/$code": typeof ApiDebtorsCodeRoute;
+	"/api/invoices/$docNo": typeof ApiInvoicesDocNoRoute;
+	"/api/items/$code": typeof ApiItemsCodeRoute;
+	"/api/order-items/$id": typeof ApiOrderItemsIdRoute;
+	"/api/orders/$id": typeof ApiOrdersIdRouteWithChildren;
 	"/api/webhook/whatsapp": typeof ApiWebhookWhatsappRoute;
+	"/api/orders/$id/confirm": typeof ApiOrdersIdConfirmRoute;
+	"/api/orders/$id/items": typeof ApiOrdersIdItemsRoute;
 }
 export interface FileRouteTypes {
 	fileRoutesByFullPath: FileRoutesByFullPath;
-	fullPaths: "/" | "/api/parse-order" | "/api/webhook/whatsapp";
+	fullPaths:
+		| "/"
+		| "/customers"
+		| "/invoices"
+		| "/items"
+		| "/orders"
+		| "/api/debtors"
+		| "/api/invoices"
+		| "/api/items"
+		| "/api/orders"
+		| "/api/parse-order"
+		| "/api/debtors/$code"
+		| "/api/invoices/$docNo"
+		| "/api/items/$code"
+		| "/api/order-items/$id"
+		| "/api/orders/$id"
+		| "/api/webhook/whatsapp"
+		| "/api/orders/$id/confirm"
+		| "/api/orders/$id/items";
 	fileRoutesByTo: FileRoutesByTo;
-	to: "/" | "/api/parse-order" | "/api/webhook/whatsapp";
-	id: "__root__" | "/" | "/api/parse-order" | "/api/webhook/whatsapp";
+	to:
+		| "/"
+		| "/customers"
+		| "/invoices"
+		| "/items"
+		| "/orders"
+		| "/api/debtors"
+		| "/api/invoices"
+		| "/api/items"
+		| "/api/orders"
+		| "/api/parse-order"
+		| "/api/debtors/$code"
+		| "/api/invoices/$docNo"
+		| "/api/items/$code"
+		| "/api/order-items/$id"
+		| "/api/orders/$id"
+		| "/api/webhook/whatsapp"
+		| "/api/orders/$id/confirm"
+		| "/api/orders/$id/items";
+	id:
+		| "__root__"
+		| "/"
+		| "/customers"
+		| "/invoices"
+		| "/items"
+		| "/orders"
+		| "/api/debtors"
+		| "/api/invoices"
+		| "/api/items"
+		| "/api/orders"
+		| "/api/parse-order"
+		| "/api/debtors/$code"
+		| "/api/invoices/$docNo"
+		| "/api/items/$code"
+		| "/api/order-items/$id"
+		| "/api/orders/$id"
+		| "/api/webhook/whatsapp"
+		| "/api/orders/$id/confirm"
+		| "/api/orders/$id/items";
 	fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
 	IndexRoute: typeof IndexRoute;
+	CustomersRoute: typeof CustomersRoute;
+	InvoicesRoute: typeof InvoicesRoute;
+	ItemsRoute: typeof ItemsRoute;
+	OrdersRoute: typeof OrdersRoute;
+	ApiDebtorsRoute: typeof ApiDebtorsRouteWithChildren;
+	ApiInvoicesRoute: typeof ApiInvoicesRouteWithChildren;
+	ApiItemsRoute: typeof ApiItemsRouteWithChildren;
+	ApiOrdersRoute: typeof ApiOrdersRouteWithChildren;
 	ApiParseOrderRoute: typeof ApiParseOrderRoute;
+	ApiOrderItemsIdRoute: typeof ApiOrderItemsIdRoute;
 	ApiWebhookWhatsappRoute: typeof ApiWebhookWhatsappRoute;
 }
 
 declare module "@tanstack/react-router" {
 	interface FileRoutesByPath {
+		"/orders": {
+			id: "/orders";
+			path: "/orders";
+			fullPath: "/orders";
+			preLoaderRoute: typeof OrdersRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		"/items": {
+			id: "/items";
+			path: "/items";
+			fullPath: "/items";
+			preLoaderRoute: typeof ItemsRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		"/invoices": {
+			id: "/invoices";
+			path: "/invoices";
+			fullPath: "/invoices";
+			preLoaderRoute: typeof InvoicesRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		"/customers": {
+			id: "/customers";
+			path: "/customers";
+			fullPath: "/customers";
+			preLoaderRoute: typeof CustomersRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
 		"/": {
 			id: "/";
 			path: "/";
@@ -75,6 +302,34 @@ declare module "@tanstack/react-router" {
 			preLoaderRoute: typeof ApiParseOrderRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
+		"/api/orders": {
+			id: "/api/orders";
+			path: "/api/orders";
+			fullPath: "/api/orders";
+			preLoaderRoute: typeof ApiOrdersRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		"/api/items": {
+			id: "/api/items";
+			path: "/api/items";
+			fullPath: "/api/items";
+			preLoaderRoute: typeof ApiItemsRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		"/api/invoices": {
+			id: "/api/invoices";
+			path: "/api/invoices";
+			fullPath: "/api/invoices";
+			preLoaderRoute: typeof ApiInvoicesRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		"/api/debtors": {
+			id: "/api/debtors";
+			path: "/api/debtors";
+			fullPath: "/api/debtors";
+			preLoaderRoute: typeof ApiDebtorsRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
 		"/api/webhook/whatsapp": {
 			id: "/api/webhook/whatsapp";
 			path: "/api/webhook/whatsapp";
@@ -82,12 +337,132 @@ declare module "@tanstack/react-router" {
 			preLoaderRoute: typeof ApiWebhookWhatsappRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
+		"/api/orders/$id": {
+			id: "/api/orders/$id";
+			path: "/$id";
+			fullPath: "/api/orders/$id";
+			preLoaderRoute: typeof ApiOrdersIdRouteImport;
+			parentRoute: typeof ApiOrdersRoute;
+		};
+		"/api/order-items/$id": {
+			id: "/api/order-items/$id";
+			path: "/api/order-items/$id";
+			fullPath: "/api/order-items/$id";
+			preLoaderRoute: typeof ApiOrderItemsIdRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		"/api/items/$code": {
+			id: "/api/items/$code";
+			path: "/$code";
+			fullPath: "/api/items/$code";
+			preLoaderRoute: typeof ApiItemsCodeRouteImport;
+			parentRoute: typeof ApiItemsRoute;
+		};
+		"/api/invoices/$docNo": {
+			id: "/api/invoices/$docNo";
+			path: "/$docNo";
+			fullPath: "/api/invoices/$docNo";
+			preLoaderRoute: typeof ApiInvoicesDocNoRouteImport;
+			parentRoute: typeof ApiInvoicesRoute;
+		};
+		"/api/debtors/$code": {
+			id: "/api/debtors/$code";
+			path: "/$code";
+			fullPath: "/api/debtors/$code";
+			preLoaderRoute: typeof ApiDebtorsCodeRouteImport;
+			parentRoute: typeof ApiDebtorsRoute;
+		};
+		"/api/orders/$id/items": {
+			id: "/api/orders/$id/items";
+			path: "/items";
+			fullPath: "/api/orders/$id/items";
+			preLoaderRoute: typeof ApiOrdersIdItemsRouteImport;
+			parentRoute: typeof ApiOrdersIdRoute;
+		};
+		"/api/orders/$id/confirm": {
+			id: "/api/orders/$id/confirm";
+			path: "/confirm";
+			fullPath: "/api/orders/$id/confirm";
+			preLoaderRoute: typeof ApiOrdersIdConfirmRouteImport;
+			parentRoute: typeof ApiOrdersIdRoute;
+		};
 	}
 }
 
+interface ApiDebtorsRouteChildren {
+	ApiDebtorsCodeRoute: typeof ApiDebtorsCodeRoute;
+}
+
+const ApiDebtorsRouteChildren: ApiDebtorsRouteChildren = {
+	ApiDebtorsCodeRoute: ApiDebtorsCodeRoute,
+};
+
+const ApiDebtorsRouteWithChildren = ApiDebtorsRoute._addFileChildren(
+	ApiDebtorsRouteChildren,
+);
+
+interface ApiInvoicesRouteChildren {
+	ApiInvoicesDocNoRoute: typeof ApiInvoicesDocNoRoute;
+}
+
+const ApiInvoicesRouteChildren: ApiInvoicesRouteChildren = {
+	ApiInvoicesDocNoRoute: ApiInvoicesDocNoRoute,
+};
+
+const ApiInvoicesRouteWithChildren = ApiInvoicesRoute._addFileChildren(
+	ApiInvoicesRouteChildren,
+);
+
+interface ApiItemsRouteChildren {
+	ApiItemsCodeRoute: typeof ApiItemsCodeRoute;
+}
+
+const ApiItemsRouteChildren: ApiItemsRouteChildren = {
+	ApiItemsCodeRoute: ApiItemsCodeRoute,
+};
+
+const ApiItemsRouteWithChildren = ApiItemsRoute._addFileChildren(
+	ApiItemsRouteChildren,
+);
+
+interface ApiOrdersIdRouteChildren {
+	ApiOrdersIdConfirmRoute: typeof ApiOrdersIdConfirmRoute;
+	ApiOrdersIdItemsRoute: typeof ApiOrdersIdItemsRoute;
+}
+
+const ApiOrdersIdRouteChildren: ApiOrdersIdRouteChildren = {
+	ApiOrdersIdConfirmRoute: ApiOrdersIdConfirmRoute,
+	ApiOrdersIdItemsRoute: ApiOrdersIdItemsRoute,
+};
+
+const ApiOrdersIdRouteWithChildren = ApiOrdersIdRoute._addFileChildren(
+	ApiOrdersIdRouteChildren,
+);
+
+interface ApiOrdersRouteChildren {
+	ApiOrdersIdRoute: typeof ApiOrdersIdRouteWithChildren;
+}
+
+const ApiOrdersRouteChildren: ApiOrdersRouteChildren = {
+	ApiOrdersIdRoute: ApiOrdersIdRouteWithChildren,
+};
+
+const ApiOrdersRouteWithChildren = ApiOrdersRoute._addFileChildren(
+	ApiOrdersRouteChildren,
+);
+
 const rootRouteChildren: RootRouteChildren = {
 	IndexRoute: IndexRoute,
+	CustomersRoute: CustomersRoute,
+	InvoicesRoute: InvoicesRoute,
+	ItemsRoute: ItemsRoute,
+	OrdersRoute: OrdersRoute,
+	ApiDebtorsRoute: ApiDebtorsRouteWithChildren,
+	ApiInvoicesRoute: ApiInvoicesRouteWithChildren,
+	ApiItemsRoute: ApiItemsRouteWithChildren,
+	ApiOrdersRoute: ApiOrdersRouteWithChildren,
 	ApiParseOrderRoute: ApiParseOrderRoute,
+	ApiOrderItemsIdRoute: ApiOrderItemsIdRoute,
 	ApiWebhookWhatsappRoute: ApiWebhookWhatsappRoute,
 };
 export const routeTree = rootRouteImport
