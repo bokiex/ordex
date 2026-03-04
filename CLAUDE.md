@@ -111,7 +111,34 @@ Line-item fields:
 4. Look up pricing from historical invoices (INV DETAIL LISTING)
 5. Generate AutoCount Invoice-format Excel for import
 
+## Feature Documentation
+
+Detailed docs for each feature are in `docs/` to reduce codebase traversal:
+
+| Doc | Covers |
+|-----|--------|
+| `docs/architecture.md` | Directory structure, tech stack, config files, env vars, scripts |
+| `docs/whatsapp-webhook.md` | WhatsApp types, `extractTextMessages()`, mock payloads, webhook handlers |
+| `docs/ai-order-parser.md` | Ollama integration, prompt template, `ParsedOrder` types, validation |
+| `docs/database.md` | All 5 table schemas, relationships, seed script, migration commands |
+| `docs/api-routes.md` | All API endpoints with request/response shapes |
+| `docs/frontend.md` | Route structure, components, UI libraries, styling setup |
+| `docs/testing.md` | Test coverage (17 tests), patterns, how to add tests |
+
+**Read these docs first before traversing `src/` — they contain file locations, type definitions, function signatures, and implementation details.**
+
 ## Scripts
+
+| Script | Command | Purpose |
+|--------|---------|---------|
+| `dev` | `vite dev --port 3000` | Start dev server |
+| `build` | `vite build` | Production build |
+| `test` | `vitest run` | Run all tests |
+| `lint` | `biome check --write ...` | Lint & format |
+| `db:generate` | `drizzle-kit generate` | Generate migrations |
+| `db:migrate` | `drizzle-kit migrate` | Apply migrations |
+| `db:push` | `drizzle-kit push` | Push schema directly |
+| `db:seed` | `bun run src/db/seed.ts` | Seed DB from Excel |
 
 - `scripts/parse-excel.ts` - Dumps structure and sample data from all Excel files (run with `bun run scripts/parse-excel.ts`)
 
@@ -128,10 +155,13 @@ Line-item fields:
 - `GET/POST /api/webhook/whatsapp` — WhatsApp Cloud API webhook (verification + incoming messages)
 - `POST /api/parse-order` — AI order parser via Ollama (accepts `{ message: string, date?: string }`)
 
+See `docs/api-routes.md` for full request/response schemas.
+
 ## Key Modules
 
-- `src/lib/whatsapp/` — WhatsApp Cloud API types, mock payloads, message extraction
-- `src/lib/parser/` — AI order parser (Ollama client, prompt template, validation)
+- `src/lib/whatsapp/` — WhatsApp Cloud API types, mock payloads, message extraction → see `docs/whatsapp-webhook.md`
+- `src/lib/parser/` — AI order parser (Ollama client, prompt template, validation) → see `docs/ai-order-parser.md`
+- `src/db/` — Database schema (5 tables), connection, seed script → see `docs/database.md`
 
 ## Linear Sync Rule
 
@@ -152,8 +182,8 @@ Do this automatically — do not wait to be asked.
 | Issue | Title | Priority | Status | Notes |
 |-------|-------|----------|--------|-------|
 | ORD-5 | Tech Stack Decision | High | **Done** | All deps installed, configs in place |
-| ORD-12 | Environment Setup | Urgent | **In Progress** | Packages + .env + drizzle.config done; needs schema + migrations + seed |
-| ORD-11 | Database Schema (Drizzle) | High | Backlog | Blocked on ORD-12 completion |
+| ORD-12 | Environment Setup | Urgent | **Done** | Packages + .env + drizzle.config + schema + migrations + seed all complete |
+| ORD-11 | Database Schema (Drizzle) | High | **Done** | 5 tables defined, migration applied, seed script working |
 | ORD-6 | WhatsApp Integration (Mock) | High | **Done** | Webhook GET/POST, types, mock payloads, 7 tests |
 | ORD-7 | AI Order Parser (Ollama) | High | **Done** | Ollama client, prompt, validation, 10 tests |
 | ORD-8 | Product Catalogue (DB) | Medium | Backlog | Excel data parsed, needs DB tables + seed |
