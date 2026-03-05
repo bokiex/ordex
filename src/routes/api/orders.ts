@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { searchDebtors } from "@/lib/db/debtors";
-import { searchItems } from "@/lib/db/items";
+import { getDebtorItemPreferences } from "@/lib/db/invoices";
 import { createOrder, listOrders } from "@/lib/db/orders";
 import type { OrderStatus } from "@/lib/db/types";
+import { matchItem } from "@/lib/matcher/index";
 import { parseOrderMessage } from "@/lib/parser/index";
 
 export const Route = createFileRoute("/api/orders")({
@@ -70,12 +71,21 @@ export const Route = createFileRoute("/api/orders")({
 				try {
 					// Match customer to debtor
 					let debtorCode: string | null = null;
+					let debtorName = parsedOrder.customerName || "Unknown";
+					let agent: string | null = null;
 					if (parsedOrder.customerName) {
 						const matchedDebtors = searchDebtors(parsedOrder.customerName);
 						if (matchedDebtors.length > 0) {
 							debtorCode = matchedDebtors[0].code;
+							debtorName = matchedDebtors[0].companyName;
+							agent = matchedDebtors[0].agent;
 						}
 					}
+
+					// Load customer's item preferences from invoice history
+					const preferences = debtorCode
+						? getDebtorItemPreferences(debtorCode)
+						: [];
 
 					// Determine document date
 					const docDate =
@@ -83,21 +93,20 @@ export const Route = createFileRoute("/api/orders")({
 						body.date ||
 						new Date().toISOString().split("T")[0];
 
-					// Build line items with item matching
+					// Build line items — prefer customer's historical items
 					const lineItems = parsedOrder.items.map((item) => {
-						const matchedItems = searchItems(item.itemName);
-						const matchedItem =
-							matchedItems.length > 0 ? matchedItems[0] : null;
+						const match = matchItem(item.itemName, preferences);
+						const unitPrice = match?.unitPrice ?? null;
 
 						return {
-							itemCode: matchedItem ? matchedItem.code : null,
+							itemCode: match?.itemCode ?? null,
 							rawItemName: item.rawText,
-							description: matchedItem
-								? matchedItem.description
-								: item.itemName,
-							uom: item.uom || matchedItem?.baseUom || null,
+							description: match?.description ?? item.itemName,
+							uom: item.uom || match?.uom || null,
 							qty: item.qty,
-							matched: !!matchedItem,
+							unitPrice,
+							lineTotal: unitPrice != null ? unitPrice * item.qty : null,
+							matched: !!match,
 						};
 					});
 
@@ -105,7 +114,8 @@ export const Route = createFileRoute("/api/orders")({
 					const order = createOrder(
 						{
 							debtorCode,
-							debtorName: parsedOrder.customerName || "Unknown",
+							debtorName,
+							agent,
 							docDate,
 							rawMessage: body.message,
 							status: "draft",

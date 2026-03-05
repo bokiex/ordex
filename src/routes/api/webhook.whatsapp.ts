@@ -1,4 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { searchDebtors } from "@/lib/db/debtors";
+import { getDebtorItemPreferences } from "@/lib/db/invoices";
+import { createOrder } from "@/lib/db/orders";
+import { matchItem } from "@/lib/matcher/index";
+import { parseOrderMessage } from "@/lib/parser/index";
 import {
 	extractTextMessages,
 	type WhatsAppWebhookPayload,
@@ -32,12 +37,12 @@ export const Route = createFileRoute("/api/webhook/whatsapp")({
 			 * Incoming message handler (POST)
 			 *
 			 * Receives webhook events from WhatsApp Cloud API.
-			 * Extracts text messages and queues them for order parsing.
+			 * Extracts text messages, parses them with AI, matches items
+			 * using customer invoice history, and creates draft orders.
 			 */
 			POST: async ({ request }) => {
 				const payload: WhatsAppWebhookPayload = await request.json();
 
-				// Validate basic structure
 				if (payload.object !== "whatsapp_business_account") {
 					return new Response("Invalid payload", { status: 400 });
 				}
@@ -45,28 +50,98 @@ export const Route = createFileRoute("/api/webhook/whatsapp")({
 				const textMessages = extractTextMessages(payload);
 
 				if (textMessages.length === 0) {
-					// Acknowledge non-text messages (status updates, etc.)
 					return new Response(null, { status: 200 });
 				}
 
-				// TODO: Queue messages for AI order parsing (ORD-7)
-				// For now, log and acknowledge
-				console.log(
-					`[WhatsApp] Received ${textMessages.length} text message(s):`,
-					textMessages.map((m) => ({
-						from: m.name,
-						preview: m.body.substring(0, 50),
-					})),
-				);
+				const results = [];
+
+				for (const msg of textMessages) {
+					try {
+						// 1. Parse the order message with AI
+						const today = new Date().toISOString().split("T")[0];
+						const parsed = await parseOrderMessage(msg.body, today);
+
+						// 2. Match customer — use WhatsApp contact name or parsed name
+						const customerName = parsed.customerName || msg.name || null;
+						let debtorCode: string | null = null;
+						let debtorName = customerName || "Unknown";
+						let agent: string | null = null;
+
+						if (customerName) {
+							const matchedDebtors = searchDebtors(customerName);
+							if (matchedDebtors.length > 0) {
+								debtorCode = matchedDebtors[0].code;
+								debtorName = matchedDebtors[0].companyName;
+								agent = matchedDebtors[0].agent;
+							}
+						}
+
+						// 3. Load customer preferences from invoice history
+						const preferences = debtorCode
+							? getDebtorItemPreferences(debtorCode)
+							: [];
+
+						const docDate = parsed.deliveryDate || today;
+
+						// 4. Match items using customer history
+						const lineItems = parsed.items.map((item) => {
+							const match = matchItem(item.itemName, preferences);
+							const unitPrice = match?.unitPrice ?? null;
+							return {
+								itemCode: match?.itemCode ?? null,
+								rawItemName: item.rawText,
+								description: match?.description ?? item.itemName,
+								uom: item.uom || match?.uom || null,
+								qty: item.qty,
+								unitPrice,
+								lineTotal: unitPrice != null ? unitPrice * item.qty : null,
+								matched: !!match,
+							};
+						});
+
+						// 5. Create draft order
+						const order = createOrder(
+							{
+								debtorCode,
+								debtorName,
+								agent,
+								docDate,
+								rawMessage: msg.body,
+								status: "draft",
+							},
+							lineItems,
+						);
+
+						results.push({
+							from: msg.from,
+							name: msg.name,
+							messageId: msg.messageId,
+							orderId: order.id,
+							itemCount: order.items.length,
+							matched: order.items.filter((i) => i.matched).length,
+						});
+
+						console.log(
+							`[WhatsApp] Created order #${order.id} from ${msg.name} (${msg.from}): ${order.items.length} items, ${order.items.filter((i) => i.matched).length} matched`,
+						);
+					} catch (e) {
+						const errMsg = e instanceof Error ? e.message : "Unknown error";
+						console.error(
+							`[WhatsApp] Failed to parse message from ${msg.name} (${msg.from}):`,
+							errMsg,
+						);
+						results.push({
+							from: msg.from,
+							name: msg.name,
+							messageId: msg.messageId,
+							error: errMsg,
+						});
+					}
+				}
 
 				return Response.json({
 					received: textMessages.length,
-					messages: textMessages.map((m) => ({
-						from: m.from,
-						name: m.name,
-						messageId: m.messageId,
-						bodyPreview: m.body.substring(0, 100),
-					})),
+					orders: results,
 				});
 			},
 		},

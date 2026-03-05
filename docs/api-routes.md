@@ -24,39 +24,46 @@ All routes use TanStack Start's `server.handlers` pattern (not `createServerFn`)
 ### `POST /api/webhook/whatsapp`
 
 **File:** `src/routes/api/webhook.whatsapp.ts`
-**Purpose:** Receive incoming WhatsApp messages
+**Purpose:** Receive WhatsApp messages, parse orders with AI, match items using customer history, create draft orders
 
 **Request Body:** `WhatsAppWebhookPayload` (from Meta Cloud API)
 
 **Logic:**
 1. Validates `payload.object === "whatsapp_business_account"`
-2. Calls `extractTextMessages(payload)` from `src/lib/whatsapp/types.ts`
+2. Calls `extractTextMessages(payload)`
 3. Non-text messages → `200` empty body
-4. Text messages → logs + returns preview JSON
+4. For each text message:
+   a. Parses with AI (`parseOrderMessage`)
+   b. Matches customer via `searchDebtors` (uses WhatsApp contact name or parsed name)
+   c. Loads customer item preferences from `getDebtorItemPreferences`
+   d. Matches each item via `matchItem` (history-first, catalogue fallback)
+   e. Creates draft order with `createOrder`
 
-**Response (text messages):**
+**Response (success):**
 ```json
 {
-  "received": 2,
-  "messages": [
+  "received": 1,
+  "orders": [
     {
       "from": "6591234567",
       "name": "Customer Name",
       "messageId": "wamid.xxx",
-      "bodyPreview": "first 100 chars..."
+      "orderId": 1,
+      "itemCount": 3,
+      "matched": 3
     }
   ]
 }
 ```
 
-**TODO:** Not yet wired to AI parser for automatic order parsing.
+**Response (partial failure):** If one message fails to parse, its entry has an `error` field instead of `orderId`.
 
 ---
 
 ### `POST /api/parse-order`
 
 **File:** `src/routes/api/parse-order.ts`
-**Purpose:** Parse a WhatsApp order message using AI (Ollama)
+**Purpose:** Parse a WhatsApp order message using AI (Ollama) — standalone endpoint, no order creation
 
 **Request Body:**
 ```json
@@ -71,20 +78,125 @@ All routes use TanStack Start's `server.handlers` pattern (not `createServerFn`)
 {
   "customerName": "string | null",
   "deliveryDate": "string | null",
-  "rawText": "original message",
   "items": [
     {
-      "itemName": "lala",
+      "rawText": "original line",
+      "itemName": "normalized name",
       "qty": 10,
-      "uom": "pkt",
-      "notes": "optional"
+      "uom": "pkt"
     }
-  ]
+  ],
+  "notes": "string | null"
 }
 ```
 
 **Error Responses:**
-- `400` — `{ "error": "Message is required" }` (missing/invalid body)
-- `502` — `{ "error": "..." }` (Ollama failure or parsing error)
+- `400` — Missing/invalid `message` field
+- `502` — Ollama failure or parsing error
 
-**Dependencies:** Requires Ollama running at `OLLAMA_BASE_URL` with `qwen2.5:7b` model.
+---
+
+### `GET /api/orders`
+
+**File:** `src/routes/api/orders.ts`
+**Purpose:** List orders with debtor info
+
+**Query Params:**
+- `?status=draft|confirmed|exported` — optional filter
+
+**Response:** Array of orders with `debtorCompanyName` joined from debtors table.
+
+---
+
+### `POST /api/orders`
+
+**File:** `src/routes/api/orders.ts`
+**Purpose:** Create an order by parsing a WhatsApp message with AI + customer preference matching
+
+**Request Body:**
+```json
+{
+  "message": "string (required) — raw order text",
+  "date": "string (optional) — date context"
+}
+```
+
+**Logic:**
+1. Parse message via Ollama → `ParsedOrder`
+2. Match customer name → debtor code (populates `debtorCode`, `debtorName`, `agent`)
+3. Load `getDebtorItemPreferences(debtorCode)` for customer's purchase history
+4. For each parsed item, call `matchItem(itemName, preferences)`:
+   - Tries customer history first (preferred manufacturer)
+   - Falls back to catalogue search
+   - Populates `unitPrice` from history if available
+5. Create draft order with line items
+
+**Response:** `201` with full `OrderWithItems` JSON.
+
+**Error Responses:**
+- `400` — Missing/invalid `message` field
+- `502` — Ollama failure
+- `500` — DB error
+
+---
+
+### `GET /api/orders/:id`
+
+**File:** `src/routes/api/orders.$id.ts`
+**Purpose:** Get full order with debtor info and line items (with matched item data)
+
+---
+
+### `PUT /api/orders/:id`
+
+**File:** `src/routes/api/orders.$id.ts`
+**Purpose:** Update order header fields (debtorCode, docDate, etc.)
+
+---
+
+### `DELETE /api/orders/:id`
+
+**File:** `src/routes/api/orders.$id.ts`
+**Purpose:** Delete an order and all its line items
+
+---
+
+### `POST /api/orders/:id/confirm`
+
+**File:** `src/routes/api/orders.$id.confirm.ts`
+**Purpose:** Set order status to `confirmed`
+
+---
+
+### `POST /api/orders/:id/items`
+
+**File:** `src/routes/api/orders.$id.items.ts`
+**Purpose:** Add a line item to an existing order
+
+---
+
+### `PUT /api/order-items/:id`
+
+**File:** `src/routes/api/order-items.$id.ts`
+**Purpose:** Update an order line item
+
+---
+
+### `DELETE /api/order-items/:id`
+
+**File:** `src/routes/api/order-items.$id.ts`
+**Purpose:** Delete an order line item
+
+---
+
+### `GET /api/debtors`
+
+**File:** `src/routes/api/debtors.ts`
+**Purpose:** List or search debtors (`?search=` for fuzzy match)
+
+---
+
+### `GET /api/items`
+
+**File:** `src/routes/api/items.ts`
+**Purpose:** List or search items (`?search=` for fuzzy match)

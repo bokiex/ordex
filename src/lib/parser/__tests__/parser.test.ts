@@ -49,7 +49,7 @@ describe("validateParsedOrder", () => {
 			rawText: "Lala 40/60 x 10 ctn",
 			itemName: "Lala 40/60",
 			qty: 10,
-			uom: "ctn",
+			uom: "CTN",
 		});
 		expect(order.items[1].itemName).toBe("Sotong Ball");
 		expect(order.deliveryDate).toBe("2026-03-04");
@@ -67,7 +67,7 @@ describe("validateParsedOrder", () => {
 		});
 
 		const order = validateParsedOrder(json);
-		expect(order.items[0].uom).toBe("pkt");
+		expect(order.items[0].uom).toBe("PKT");
 	});
 
 	it("defaults missing customerName and deliveryDate to null", () => {

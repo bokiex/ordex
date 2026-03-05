@@ -85,7 +85,7 @@ async function seed() {
 		agent: row.Agent ? String(row.Agent) : null,
 		itemCode: String(row["Item Code"]),
 		description: String(row["Detail Description"] ?? ""),
-		uom: String(row.UOM ?? "PCS"),
+		uom: String(row.UOM ?? "PCS").toUpperCase(),
 		location: String(row.Location ?? "HQ"),
 		qty: Number(row.Qty) || 0,
 		unitPrice: Number(row["Unit Price"]) || 0,

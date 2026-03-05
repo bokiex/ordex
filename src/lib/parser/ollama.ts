@@ -4,6 +4,7 @@
  * Uses the qwen2.5:7b model via Ollama REST API.
  */
 
+import { normalizeUom } from "@/lib/uom";
 import { buildOrderParserPrompt } from "./prompt.ts";
 import type {
 	OllamaGenerateRequest,
@@ -72,7 +73,7 @@ export function validateParsedOrder(jsonString: string): ParsedOrder {
 					rawText: String(item.rawText ?? ""),
 					itemName: String(item.itemName),
 					qty: item.qty,
-					uom: String(item.uom ?? "pkt"),
+					uom: normalizeUom(item.uom),
 				});
 			}
 		}

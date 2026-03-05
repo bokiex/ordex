@@ -17,10 +17,9 @@ import {
 	TableRow,
 	Tooltip,
 } from "@heroui/react";
-import { AlertTriangle, Check, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { AlertTriangle, Check, Plus, Trash2, UserPlus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { apiCall } from "@/hooks/useApi";
-import { useDebounce } from "@/hooks/useDebounce";
 import type { Debtor, Item, OrderItem, OrderWithItems } from "@/lib/db/types";
 
 interface OrderDetailModalProps {
@@ -28,6 +27,33 @@ interface OrderDetailModalProps {
 	onClose: () => void;
 	order: OrderWithItems | null;
 	onUpdated: () => void;
+}
+
+/** Filter items client-side by code or description (case-insensitive). */
+function filterItems(allItems: Item[], query: string): Item[] {
+	if (!query) return allItems.slice(0, 20);
+	const q = query.toLowerCase();
+	return allItems
+		.filter(
+			(i) =>
+				i.code.toLowerCase().includes(q) ||
+				i.description.toLowerCase().includes(q),
+		)
+		.slice(0, 20);
+}
+
+/** Filter debtors client-side by name, alias, or code (case-insensitive). */
+function filterDebtors(allDebtors: Debtor[], query: string): Debtor[] {
+	if (!query) return allDebtors.slice(0, 20);
+	const q = query.toLowerCase();
+	return allDebtors
+		.filter(
+			(d) =>
+				d.companyName.toLowerCase().includes(q) ||
+				(d.alias?.toLowerCase().includes(q) ?? false) ||
+				d.code.toLowerCase().includes(q),
+		)
+		.slice(0, 20);
 }
 
 export function OrderDetailModal({
@@ -41,46 +67,103 @@ export function OrderDetailModal({
 	const [confirming, setConfirming] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	// Customer search
-	const [customerSearch, setCustomerSearch] = useState("");
-	const debouncedCustomerSearch = useDebounce(customerSearch, 300);
-	const [customerResults, setCustomerResults] = useState<Debtor[]>([]);
+	// Preloaded reference data (loaded once when modal opens)
+	const [allDebtors, setAllDebtors] = useState<Debtor[]>([]);
+	const [allItems, setAllItems] = useState<Item[]>([]);
 
-	// Item search for new row
+	// Customer search (client-side filtered)
+	const [customerSearch, setCustomerSearch] = useState("");
+	const customerResults = useMemo(
+		() => filterDebtors(allDebtors, customerSearch),
+		[allDebtors, customerSearch],
+	);
+
+	// Item search for new row (client-side filtered)
 	const [itemSearch, setItemSearch] = useState("");
-	const debouncedItemSearch = useDebounce(itemSearch, 300);
-	const [itemResults, setItemResults] = useState<Item[]>([]);
+	const itemResults = useMemo(
+		() => filterItems(allItems, itemSearch),
+		[allItems, itemSearch],
+	);
+
+	// New customer form
+	const [showNewCustomer, setShowNewCustomer] = useState(false);
+	const [newCustomer, setNewCustomer] = useState({
+		code: "",
+		companyName: "",
+		alias: "",
+		phone: "",
+		agent: "",
+	});
+	const [savingCustomer, setSavingCustomer] = useState(false);
+
+	const noCustomerMatch = useMemo(() => {
+		if (!customerSearch || customerSearch.length < 2) return false;
+		return customerResults.length === 0;
+	}, [customerSearch, customerResults]);
+
+	const handleCreateCustomer = async () => {
+		if (!newCustomer.code || !newCustomer.companyName) return;
+		setSavingCustomer(true);
+		try {
+			const debtor = await apiCall<Debtor>("/api/debtors", {
+				method: "POST",
+				body: JSON.stringify({
+					code: newCustomer.code,
+					companyName: newCustomer.companyName,
+					alias: newCustomer.alias || null,
+					phone: newCustomer.phone || null,
+					agent: newCustomer.agent || null,
+				}),
+			});
+			// Add to local list and select
+			setAllDebtors((prev) => [debtor, ...prev]);
+			setCustomerSearch(`${debtor.code} — ${debtor.companyName}`);
+			setShowNewCustomer(false);
+			setNewCustomer({
+				code: "",
+				companyName: "",
+				alias: "",
+				phone: "",
+				agent: "",
+			});
+			// Update order header
+			await updateHeader({
+				debtorCode: debtor.code,
+				debtorName: debtor.companyName,
+				agent: debtor.agent,
+			});
+		} catch (e) {
+			setError(e instanceof Error ? e.message : "Failed to create customer");
+		} finally {
+			setSavingCustomer(false);
+		}
+	};
 
 	useEffect(() => {
 		if (order) {
 			setLocalOrder(order);
 			setError(null);
+			// Set initial customer display text
+			setCustomerSearch(
+				order.debtorName
+					? `${order.debtorCode ?? ""} — ${order.debtorName}`
+					: "",
+			);
 		}
 	}, [order]);
 
-	// Fetch customer search results
+	// Load all debtors + items once when modal opens
 	useEffect(() => {
-		if (!debouncedCustomerSearch) {
-			setCustomerResults([]);
-			return;
-		}
-		fetch(`/api/debtors?search=${encodeURIComponent(debouncedCustomerSearch)}`)
+		if (!isOpen) return;
+		fetch("/api/debtors")
 			.then((r) => r.json())
-			.then(setCustomerResults)
+			.then(setAllDebtors)
 			.catch(() => {});
-	}, [debouncedCustomerSearch]);
-
-	// Fetch item search results
-	useEffect(() => {
-		if (!debouncedItemSearch) {
-			setItemResults([]);
-			return;
-		}
-		fetch(`/api/items?search=${encodeURIComponent(debouncedItemSearch)}`)
+		fetch("/api/items")
 			.then((r) => r.json())
-			.then(setItemResults)
+			.then(setAllItems)
 			.catch(() => {});
-	}, [debouncedItemSearch]);
+	}, [isOpen]);
 
 	if (!localOrder) return null;
 
@@ -231,6 +314,11 @@ export function OrderDetailModal({
 								onSelectionChange={(key) => {
 									if (key) {
 										const debtor = customerResults.find((d) => d.code === key);
+										if (debtor) {
+											setCustomerSearch(
+												`${debtor.code} — ${debtor.companyName}`,
+											);
+										}
 										updateHeader({
 											debtorCode: key,
 											debtorName: debtor?.companyName ?? localOrder.debtorName,
@@ -239,11 +327,6 @@ export function OrderDetailModal({
 									}
 								}}
 								isDisabled={!isDraft}
-								defaultInputValue={
-									localOrder.debtorName
-										? `${localOrder.debtorCode ?? ""} — ${localOrder.debtorName}`
-										: ""
-								}
 							>
 								{customerResults.map((d) => (
 									<AutocompleteItem
@@ -266,6 +349,111 @@ export function OrderDetailModal({
 							isDisabled={!isDraft}
 						/>
 					</div>
+
+					{/* New customer prompt + form */}
+					{isDraft && noCustomerMatch && !showNewCustomer && (
+						<div className="flex items-center gap-3 mb-4 p-3 bg-warning/10 border border-warning/30 rounded-lg">
+							<AlertTriangle size={18} className="text-warning shrink-0" />
+							<span className="text-sm text-warning">
+								No matching customer found.
+							</span>
+							<Button
+								size="sm"
+								color="warning"
+								variant="flat"
+								startContent={<UserPlus size={16} />}
+								onPress={() => {
+									setShowNewCustomer(true);
+									setNewCustomer((prev) => ({
+										...prev,
+										companyName: customerSearch,
+									}));
+								}}
+							>
+								Add New Customer
+							</Button>
+						</div>
+					)}
+
+					{showNewCustomer && (
+						<div className="mb-4 p-4 bg-gray-800/50 border border-gray-700 rounded-lg space-y-3">
+							<h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+								<UserPlus size={16} />
+								New Customer
+							</h4>
+							<div className="grid grid-cols-2 gap-3">
+								<Input
+									label="Customer Code"
+									placeholder="e.g. 3000-X001"
+									value={newCustomer.code}
+									onValueChange={(v) =>
+										setNewCustomer((prev) => ({ ...prev, code: v }))
+									}
+									isRequired
+									size="sm"
+								/>
+								<Input
+									label="Company Name"
+									placeholder="Company name"
+									value={newCustomer.companyName}
+									onValueChange={(v) =>
+										setNewCustomer((prev) => ({
+											...prev,
+											companyName: v,
+										}))
+									}
+									isRequired
+									size="sm"
+								/>
+								<Input
+									label="Alias"
+									placeholder="Short name / location"
+									value={newCustomer.alias}
+									onValueChange={(v) =>
+										setNewCustomer((prev) => ({ ...prev, alias: v }))
+									}
+									size="sm"
+								/>
+								<Input
+									label="Phone"
+									placeholder="Phone number"
+									value={newCustomer.phone}
+									onValueChange={(v) =>
+										setNewCustomer((prev) => ({ ...prev, phone: v }))
+									}
+									size="sm"
+								/>
+								<Input
+									label="Agent"
+									placeholder="Agent code"
+									value={newCustomer.agent}
+									onValueChange={(v) =>
+										setNewCustomer((prev) => ({ ...prev, agent: v }))
+									}
+									size="sm"
+								/>
+							</div>
+							<div className="flex gap-2 justify-end">
+								<Button
+									size="sm"
+									variant="light"
+									onPress={() => setShowNewCustomer(false)}
+								>
+									Cancel
+								</Button>
+								<Button
+									size="sm"
+									color="primary"
+									onPress={handleCreateCustomer}
+									isLoading={savingCustomer}
+									isDisabled={!newCustomer.code || !newCustomer.companyName}
+									startContent={<Check size={16} />}
+								>
+									Create & Assign
+								</Button>
+							</div>
+						</div>
+					)}
 
 					{/* Raw message preview */}
 					{localOrder.rawMessage && (
@@ -313,6 +501,7 @@ export function OrderDetailModal({
 										{isDraft ? (
 											<ItemSearchCell
 												orderItem={orderItem}
+												allItems={allItems}
 												onSelect={(item) =>
 													updateItem(orderItem.id, {
 														itemCode: item.code,
@@ -404,7 +593,7 @@ export function OrderDetailModal({
 								inputValue={itemSearch}
 								onInputChange={setItemSearch}
 								onSelectionChange={(key) => {
-									const item = itemResults.find((i) => i.code === key);
+									const item = allItems.find((i) => i.code === key);
 									if (item) addItem(item);
 								}}
 								size="sm"
@@ -468,25 +657,18 @@ export function OrderDetailModal({
 // Inline item search component for table cells
 function ItemSearchCell({
 	orderItem,
+	allItems,
 	onSelect,
 }: {
 	orderItem: OrderItem & { item: Item | null };
+	allItems: Item[];
 	onSelect: (item: Item) => void;
 }) {
-	const [search, setSearch] = useState("");
-	const debouncedSearch = useDebounce(search, 300);
-	const [results, setResults] = useState<Item[]>([]);
-
-	useEffect(() => {
-		if (!debouncedSearch) {
-			setResults([]);
-			return;
-		}
-		fetch(`/api/items?search=${encodeURIComponent(debouncedSearch)}`)
-			.then((r) => r.json())
-			.then(setResults)
-			.catch(() => {});
-	}, [debouncedSearch]);
+	const [search, setSearch] = useState(orderItem.itemCode ?? "");
+	const results = useMemo(
+		() => filterItems(allItems, search),
+		[allItems, search],
+	);
 
 	if (orderItem.matched && orderItem.itemCode) {
 		return (
@@ -496,10 +678,12 @@ function ItemSearchCell({
 				onInputChange={setSearch}
 				selectedKey={orderItem.itemCode}
 				onSelectionChange={(key) => {
-					const item = results.find((i) => i.code === key);
-					if (item) onSelect(item);
+					const item = allItems.find((i) => i.code === key);
+					if (item) {
+						setSearch(item.code);
+						onSelect(item);
+					}
 				}}
-				defaultInputValue={orderItem.itemCode}
 				className="w-40"
 			>
 				{results.map((item) => (
@@ -520,8 +704,11 @@ function ItemSearchCell({
 			inputValue={search}
 			onInputChange={setSearch}
 			onSelectionChange={(key) => {
-				const item = results.find((i) => i.code === key);
-				if (item) onSelect(item);
+				const item = allItems.find((i) => i.code === key);
+				if (item) {
+					setSearch(item.code);
+					onSelect(item);
+				}
 			}}
 			placeholder={orderItem.rawItemName ?? "Search..."}
 			className="w-40"

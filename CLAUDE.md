@@ -105,11 +105,13 @@ Line-item fields:
 
 ## Workflow
 
-1. Parse WhatsApp messages to extract: customer name, items ordered, quantities
-2. Match customer → debtor code (fuzzy match against Company Name / 2nd Description)
-3. Match items → item codes (fuzzy match against Description / Item Code)
-4. Look up pricing from historical invoices (INV DETAIL LISTING)
-5. Generate AutoCount Invoice-format Excel for import
+1. WhatsApp message arrives via webhook (or manually via `POST /api/orders`)
+2. AI parser (Ollama) extracts: customer name, items ordered, quantities, UOMs
+3. Match customer → debtor code (fuzzy match against Company Name / alias / code)
+4. Load customer's item preferences from invoice history (`getDebtorItemPreferences`)
+5. Match items → item codes using customer preference (preferred manufacturer first, catalogue fallback)
+6. Auto-populate unit prices from most recent invoice history
+7. Create draft order → review/edit in UI → confirm → export to AutoCount Excel
 
 ## Feature Documentation
 
@@ -118,12 +120,14 @@ Detailed docs for each feature are in `docs/` to reduce codebase traversal:
 | Doc | Covers |
 |-----|--------|
 | `docs/architecture.md` | Directory structure, tech stack, config files, env vars, scripts |
-| `docs/whatsapp-webhook.md` | WhatsApp types, `extractTextMessages()`, mock payloads, webhook handlers |
+| `docs/whatsapp-webhook.md` | WhatsApp types, `extractTextMessages()`, mock payloads, webhook → order creation |
 | `docs/ai-order-parser.md` | Ollama integration, prompt template, `ParsedOrder` types, validation |
+| `docs/item-matcher.md` | Customer preference matching, `matchItem()`, `getDebtorItemPreferences()` |
 | `docs/database.md` | All 5 table schemas, relationships, seed script, migration commands |
 | `docs/api-routes.md` | All API endpoints with request/response shapes |
 | `docs/frontend.md` | Route structure, components, UI libraries, styling setup |
-| `docs/testing.md` | Test coverage (17 tests), patterns, how to add tests |
+| `docs/testing.md` | Test coverage (30 tests), patterns, how to add tests |
+| `docs/test-examples.md` | Curl commands for testing order creation with real customer data |
 
 **Read these docs first before traversing `src/` — they contain file locations, type definitions, function signatures, and implementation details.**
 
@@ -149,11 +153,19 @@ Detailed docs for each feature are in `docs/` to reduce codebase traversal:
 - Commit after each completed Linear issue
 - Use TanStack Start `server.handlers` for API routes (not `createServerFn` for webhooks)
 - Biome linter runs on pre-commit via lefthook; auto-generated files excluded via `overrides`
+- **Always update docs on any code change.** When you modify, add, or remove files/features/APIs, update the relevant `docs/*.md` files and the feature docs table below in CLAUDE.md. Docs must always reflect the current state of the codebase. This is not optional.
 
 ## API Routes
 
-- `GET/POST /api/webhook/whatsapp` — WhatsApp Cloud API webhook (verification + incoming messages)
-- `POST /api/parse-order` — AI order parser via Ollama (accepts `{ message: string, date?: string }`)
+- `GET/POST /api/webhook/whatsapp` — WhatsApp webhook (verification + message → AI parse → order creation)
+- `POST /api/parse-order` — Standalone AI parser via Ollama (no order creation)
+- `GET/POST /api/orders` — List orders / Create order from message (AI parse + preference matching)
+- `GET/PUT/DELETE /api/orders/:id` — Single order CRUD
+- `POST /api/orders/:id/confirm` — Confirm a draft order
+- `POST /api/orders/:id/items` — Add line item to order
+- `PUT/DELETE /api/order-items/:id` — Update/delete line item
+- `GET /api/debtors` — List/search debtors
+- `GET /api/items` — List/search items
 
 See `docs/api-routes.md` for full request/response schemas.
 
@@ -161,6 +173,8 @@ See `docs/api-routes.md` for full request/response schemas.
 
 - `src/lib/whatsapp/` — WhatsApp Cloud API types, mock payloads, message extraction → see `docs/whatsapp-webhook.md`
 - `src/lib/parser/` — AI order parser (Ollama client, prompt template, validation) → see `docs/ai-order-parser.md`
+- `src/lib/matcher/` — Customer preference item matching from invoice history → see `docs/item-matcher.md`
+- `src/lib/db/` — DB query functions (orders, items, debtors, invoices) → see `docs/database.md`
 - `src/db/` — Database schema (5 tables), connection, seed script → see `docs/database.md`
 
 ## Linear Sync Rule

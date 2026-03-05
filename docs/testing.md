@@ -10,7 +10,8 @@
 |--------|------|-------|------|
 | WhatsApp | `src/lib/whatsapp/__tests__/types.test.ts` | 7 | Unit (pure logic) |
 | Parser | `src/lib/parser/__tests__/parser.test.ts` | 10 | Unit (pure logic) |
-| **Total** | | **17** | |
+| Matcher | `src/lib/matcher/__tests__/matcher.test.ts` | 13 | Unit (pure logic) |
+| **Total** | | **30** | |
 
 All tests are pure logic — no network calls, no database, no mocking needed.
 
@@ -41,9 +42,28 @@ All tests are pure logic — no network calls, no database, no mocking needed.
 | 9 | Filter invalid items | Mixed validity array |
 | 10 | Coerce rawText | Numeric rawText → string |
 
+## Matcher Tests (13)
+
+| # | Test | What It Validates |
+|---|------|-------------------|
+| 1-4 | tokenize() | Splitting, noise filtering, slash-numbers, empty |
+| 5 | Lala → most-ordered variant | Frequency-based preference |
+| 6 | Lala 30/40 → specific size | Specific match over generic |
+| 7 | Sotong → sotong tube | Simple preference match |
+| 8 | Yellow noodle → correct match | Multi-word matching |
+| 9 | Unrelated item → null | No false positives |
+| 10 | Empty preferences → null | Edge case |
+| 11 | matchItem history source | Returns source: "history" with price |
+| 12 | matchItem specific match | More tokens = better match |
+| 13 | matchItem fallback | Catalogue fallback for unknown items |
+
+## Manual API Testing
+
+See `docs/test-examples.md` for curl commands with real customer/item data to test the full pipeline.
+
 ## Test Patterns Used
 
-- **No mocking:** Tests validate pure functions (prompt building, JSON validation)
+- **No mocking:** Tests validate pure functions (prompt building, JSON validation, token matching)
 - **No network:** Ollama API is not called in tests
 - **Barrel imports:** Tests import from module index (`@/lib/parser`, `@/lib/whatsapp`)
 - **Path aliases:** Uses `@/` prefix via `vite-tsconfig-paths`

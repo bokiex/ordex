@@ -9,20 +9,31 @@ ordex/
 │   ├── architecture.md            # This file
 │   ├── whatsapp-webhook.md        # WhatsApp integration docs
 │   ├── ai-order-parser.md         # AI parser docs
+│   ├── item-matcher.md            # Customer preference item matching
 │   ├── database.md                # DB schema & operations
 │   ├── api-routes.md              # All API endpoints
 │   ├── frontend.md                # UI components & routes
-│   └── testing.md                 # Test coverage & patterns
+│   ├── testing.md                 # Test coverage & patterns
+│   └── test-examples.md           # Curl commands for testing
 ├── drizzle/                       # Generated SQL migrations
 ├── scripts/                       # Utility scripts
 ├── src/
 │   ├── components/                # Shared React components
+│   │   ├── orders/                # Order detail modal
+│   │   └── shared/                # Reusable UI (PageHeader, StatusChip, etc.)
 │   ├── db/                        # Database layer (schema, connection, seed)
+│   ├── hooks/                     # React hooks (useApi, useDebounce)
 │   ├── lib/                       # Feature modules
+│   │   ├── db/                    # DB query functions (orders, items, debtors, invoices)
+│   │   ├── matcher/               # Customer preference item matching
 │   │   ├── parser/                # AI order parser (Ollama)
 │   │   └── whatsapp/              # WhatsApp Cloud API types & helpers
 │   ├── routes/                    # TanStack Start file-based routes
 │   │   ├── api/                   # Server-only API handlers
+│   │   ├── orders.tsx             # Order list + detail modal
+│   │   ├── customers.tsx          # Customer listing
+│   │   ├── items.tsx              # Item catalogue
+│   │   ├── invoices.tsx           # Invoice history
 │   │   └── index.tsx              # Homepage
 │   ├── router.tsx                 # Router config
 │   ├── routeTree.gen.ts           # Auto-generated route tree
@@ -102,4 +113,5 @@ ordex/
 |----------|---------|---------|
 | `WHATSAPP_VERIFY_TOKEN` | `ordex-dev-token` | Webhook verification token |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama API endpoint |
+| `OLLAMA_MODEL` | `qwen2.5:7b` | Ollama model for order parsing |
 | `ANTHROPIC_API_KEY` | — | Anthropic SDK (installed, not yet used) |

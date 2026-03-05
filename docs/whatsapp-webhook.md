@@ -1,11 +1,11 @@
 # WhatsApp Cloud API Integration
 
-**Status:** Done (ORD-6)
+**Status:** Done (ORD-6) — fully wired to AI parser and order creation
 **Location:** `src/lib/whatsapp/` + `src/routes/api/webhook.whatsapp.ts`
 
 ## Overview
 
-Handles incoming WhatsApp messages via Meta's Cloud API webhook. Extracts text messages and prepares them for AI parsing.
+Handles incoming WhatsApp messages via Meta's Cloud API webhook. Extracts text messages, parses them with AI, matches items using customer invoice history, and creates draft orders.
 
 ## Files
 
@@ -14,7 +14,7 @@ Handles incoming WhatsApp messages via Meta's Cloud API webhook. Extracts text m
 | `src/lib/whatsapp/types.ts` | Full WhatsApp Cloud API type definitions + `extractTextMessages()` |
 | `src/lib/whatsapp/mock.ts` | Mock payload factories + 3 sample order messages |
 | `src/lib/whatsapp/index.ts` | Barrel re-exports |
-| `src/routes/api/webhook.whatsapp.ts` | GET (verify) + POST (receive) handlers |
+| `src/routes/api/webhook.whatsapp.ts` | GET (verify) + POST (receive + parse + create order) |
 | `src/lib/whatsapp/__tests__/types.test.ts` | 7 unit tests |
 
 ## Type Definitions
@@ -60,15 +60,17 @@ All types in `src/lib/whatsapp/types.ts`:
 - Compares token against `WHATSAPP_VERIFY_TOKEN` env var
 - Returns challenge as plain text `200` on match, `403` otherwise
 
-### `POST /api/webhook/whatsapp` — Incoming Messages
+### `POST /api/webhook/whatsapp` — Incoming Messages → Order Creation
 - Validates `payload.object === "whatsapp_business_account"`
 - Calls `extractTextMessages()` on payload
 - Returns `200` with empty body for non-text messages
-- For text messages, returns JSON preview:
-  ```json
-  { "received": 2, "messages": [{ "from": "...", "name": "...", "messageId": "...", "bodyPreview": "first 100 chars..." }] }
-  ```
-- **TODO:** Not yet wired to AI parser (ORD-7 integration pending)
+- For each text message:
+  1. Parses order with AI (`parseOrderMessage`)
+  2. Matches customer using WhatsApp contact name or parsed name (`searchDebtors`)
+  3. Loads customer item preferences (`getDebtorItemPreferences`)
+  4. Matches items with customer history preference (`matchItem`)
+  5. Creates draft order (`createOrder`)
+- Returns JSON with order creation results per message
 
 ## Sample Order Messages
 
