@@ -168,6 +168,18 @@ All routes use TanStack Start's `server.handlers` pattern (not `createServerFn`)
 
 ---
 
+### `GET /api/orders/:id/export`
+
+**File:** `src/routes/api/orders.$id.export.ts`
+**Purpose:** Generate and download an Excel (`.xlsx`) file for a confirmed/exported order
+
+**Behavior:**
+- Returns `400` if order is still in `draft`
+- Marks order status as `exported` on first successful export
+- Returns file as attachment with two sheets (`Order Summary`, `Line Items`)
+
+---
+
 ### `POST /api/orders/:id/items`
 
 **File:** `src/routes/api/orders.$id.items.ts`

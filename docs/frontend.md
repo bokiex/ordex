@@ -27,7 +27,8 @@ Order creation is API-only (via `POST /api/orders` or WhatsApp webhook). The ord
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| `Header` | `src/components/Header.tsx` | Dark top bar with hamburger sidebar nav |
+| `Header` | `src/components/Header.tsx` | HeroUI Navbar — mobile-only top bar with menu toggle |
+| `Sidebar` | `src/components/Sidebar.tsx` | HeroUI Drawer (mobile) + Listbox navigation (desktop fixed) |
 | `PageHeader` | `src/components/shared/PageHeader.tsx` | Page title component |
 | `StatusChip` | `src/components/shared/StatusChip.tsx` | Order status badge |
 | `ConfirmDeleteModal` | `src/components/shared/ConfirmDeleteModal.tsx` | Delete confirmation dialog |
@@ -40,7 +41,17 @@ The `OrderDetailModal` loads all debtors and items once when opened, then filter
 ### Autocomplete Selection Display
 Customer and item autocomplete fields update their displayed text on selection (not just the hidden key). Customer shows `"CODE — NAME"` format.
 
+## UI Rules
+
+- **Always use HeroUI components** — never raw HTML for interactive elements (buttons, inputs, modals, tables, navigation, drawers, chips)
+- Import from `@heroui/react`
+- Use `classNames` prop for styling overrides
+- Icons: Lucide React (`lucide-react`)
+- Layout: Tailwind CSS utilities for spacing/grid/flex; HeroUI for interactive UI
+
 ## Styling
+
+HeroUI components are the primary building blocks for all interactive UI. Raw HTML elements should only be used for layout containers (`div`, `section`, `main`).
 
 ### `src/styles.css`
 - Tailwind CSS v4 with `@import "tailwindcss"`
@@ -54,7 +65,7 @@ Customer and item autocomplete fields update their displayed text on selection (
 | Library | Version | Status |
 |---------|---------|--------|
 | HeroUI | 2.8.9 | Installed, provider wired in `__root__` |
-| Framer Motion | 12.34.4 | Installed, used in Header sidebar |
+| Framer Motion | 12.34.4 | Installed, used by HeroUI internally |
 | Lucide React | 0.545.0 | Installed, used for icons |
 | Tailwind CSS v4 | 4.1.18 | Configured |
 

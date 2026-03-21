@@ -68,7 +68,7 @@ function RootLayout() {
 	return (
 		<HeroUIProvider>
 			<div className="flex h-screen bg-gray-950 text-white">
-				<Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+				<Sidebar isOpen={sidebarOpen} onOpenChange={setSidebarOpen} />
 				<div className="flex flex-1 flex-col md:ml-64 min-h-screen">
 					<Header onMenuClick={() => setSidebarOpen(true)} />
 					<main className="flex-1 overflow-auto p-6">

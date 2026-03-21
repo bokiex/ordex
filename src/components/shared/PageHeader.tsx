@@ -1,3 +1,4 @@
+import { Divider } from "@heroui/react";
 import type { ReactNode } from "react";
 
 interface PageHeaderProps {
@@ -7,9 +8,12 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, action }: PageHeaderProps) {
 	return (
-		<div className="flex items-center justify-between mb-6">
-			<h1 className="text-2xl font-bold text-white">{title}</h1>
-			{action}
-		</div>
+		<>
+			<div className="flex items-center justify-between">
+				<h1 className="text-2xl font-bold text-white">{title}</h1>
+				{action}
+			</div>
+			<Divider className="my-4" />
+		</>
 	);
 }

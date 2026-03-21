@@ -155,6 +155,14 @@ Detailed docs for each feature are in `docs/` to reduce codebase traversal:
 - Biome linter runs on pre-commit via lefthook; auto-generated files excluded via `overrides`
 - **Always update docs on any code change.** When you modify, add, or remove files/features/APIs, update the relevant `docs/*.md` files and the feature docs table below in CLAUDE.md. Docs must always reflect the current state of the codebase. This is not optional.
 
+## UI Component Rules
+
+- **Always use HeroUI components** — never use raw HTML for interactive elements (buttons, inputs, modals, tables, navigation, drawers, chips, etc.)
+- Import from `@heroui/react` — do not create custom components when HeroUI provides an equivalent
+- Use HeroUI's `classNames` prop for styling overrides, not wrapper divs with Tailwind
+- Icons: use Lucide React (`lucide-react`) for all icons
+- Layout: Tailwind CSS utility classes for spacing/grid/flex; HeroUI components for interactive UI
+
 ## API Routes
 
 - `GET/POST /api/webhook/whatsapp` — WhatsApp webhook (verification + message → AI parse → order creation)
@@ -188,20 +196,38 @@ Do this automatically — do not wait to be asked.
 
 ---
 
-## Linear Project Status (Updated 2026-03-03)
+## Linear Project Status (Updated 2026-03-05)
 
 **Project:** Ordex POC - WhatsApp Order Automation
-**Team:** Ordex | **Target:** 2026-03-01 (overdue)
+**Team:** Ordex | **Status:** In Progress | **Target:** 2026-03-21
 
-| Issue | Title | Priority | Status | Notes |
-|-------|-------|----------|--------|-------|
-| ORD-5 | Tech Stack Decision | High | **Done** | All deps installed, configs in place |
-| ORD-12 | Environment Setup | Urgent | **Done** | Packages + .env + drizzle.config + schema + migrations + seed all complete |
-| ORD-11 | Database Schema (Drizzle) | High | **Done** | 5 tables defined, migration applied, seed script working |
-| ORD-6 | WhatsApp Integration (Mock) | High | **Done** | Webhook GET/POST, types, mock payloads, 7 tests |
-| ORD-7 | AI Order Parser (Ollama) | High | **Done** | Ollama client, prompt, validation, 10 tests |
-| ORD-8 | Product Catalogue (DB) | Medium | Backlog | Excel data parsed, needs DB tables + seed |
-| ORD-9 | Order Parser UI | Medium | Backlog | HeroUI ready, only placeholder route |
-| ORD-10 | Excel Export (Invoice) | High | Backlog | SheetJS installed, no export logic |
+### Completed
 
-**Implementation order:** ORD-12 (finish) → ORD-11 → ORD-8 → ORD-7 → ORD-6 → ORD-9 → ORD-10
+| Issue | Title | Priority | Status |
+|-------|-------|----------|--------|
+| ORD-5 | Tech Stack Decision | High | **Done** |
+| ORD-12 | Environment Setup | Urgent | **Done** |
+| ORD-11 | Database Schema (Drizzle) | High | **Done** |
+| ORD-6 | WhatsApp Integration (Mock) | High | **Done** |
+| ORD-7 | AI Order Parser (Ollama) | High | **Done** |
+| ORD-8 | Product Catalogue (DB) | Medium | **Done** |
+| ORD-9 | Order Management UI | Medium | **Done** |
+| ORD-13 | Item Preference Matcher | High | **Done** |
+
+### In Progress / Upcoming
+
+| Issue | Title | Priority | Status | Due | Notes |
+|-------|-------|----------|--------|-----|-------|
+| ORD-14 | Excel Export — AutoCount Invoice | High | **Todo** | Mar 10 | POC-critical: generates importable xlsx |
+| ORD-16 | Deployment — Production Hosting | Medium | Backlog | Mar 17 | VPS + SSL + Ollama |
+| ORD-15 | WhatsApp Cloud API — Live Integration | Medium | Backlog | Mar 21 | Blocked by ORD-16 |
+| ORD-17 | Multi-UOM Conversion | Low | Backlog | Mar 21 | CTN↔PKT↔KG handling |
+| ORD-18 | Order Audit Log | Low | Backlog | Mar 21 | Nice-to-have for POC |
+
+### Canceled
+
+| Issue | Title | Reason |
+|-------|-------|--------|
+| ORD-10 | Excel Export (old) | Duplicate of ORD-14 |
+
+**Next up:** ORD-14 (Excel Export) → ORD-16 (Deploy) → ORD-15 (Live WhatsApp)

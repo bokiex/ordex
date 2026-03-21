@@ -19,6 +19,7 @@ import { Route as ApiOrderItemsIdRouteImport } from "./routes/api/order-items.$i
 import { Route as ApiOrdersRouteImport } from "./routes/api/orders";
 import { Route as ApiOrdersIdRouteImport } from "./routes/api/orders.$id";
 import { Route as ApiOrdersIdConfirmRouteImport } from "./routes/api/orders.$id.confirm";
+import { Route as ApiOrdersIdExportRouteImport } from "./routes/api/orders.$id.export";
 import { Route as ApiOrdersIdItemsRouteImport } from "./routes/api/orders.$id.items";
 import { Route as ApiParseOrderRouteImport } from "./routes/api/parse-order";
 import { Route as ApiWebhookWhatsappRouteImport } from "./routes/api/webhook.whatsapp";
@@ -113,6 +114,11 @@ const ApiOrdersIdItemsRoute = ApiOrdersIdItemsRouteImport.update({
 	path: "/items",
 	getParentRoute: () => ApiOrdersIdRoute,
 } as any);
+const ApiOrdersIdExportRoute = ApiOrdersIdExportRouteImport.update({
+	id: "/export",
+	path: "/export",
+	getParentRoute: () => ApiOrdersIdRoute,
+} as any);
 const ApiOrdersIdConfirmRoute = ApiOrdersIdConfirmRouteImport.update({
 	id: "/confirm",
 	path: "/confirm",
@@ -137,6 +143,7 @@ export interface FileRoutesByFullPath {
 	"/api/orders/$id": typeof ApiOrdersIdRouteWithChildren;
 	"/api/webhook/whatsapp": typeof ApiWebhookWhatsappRoute;
 	"/api/orders/$id/confirm": typeof ApiOrdersIdConfirmRoute;
+	"/api/orders/$id/export": typeof ApiOrdersIdExportRoute;
 	"/api/orders/$id/items": typeof ApiOrdersIdItemsRoute;
 }
 export interface FileRoutesByTo {
@@ -157,6 +164,7 @@ export interface FileRoutesByTo {
 	"/api/orders/$id": typeof ApiOrdersIdRouteWithChildren;
 	"/api/webhook/whatsapp": typeof ApiWebhookWhatsappRoute;
 	"/api/orders/$id/confirm": typeof ApiOrdersIdConfirmRoute;
+	"/api/orders/$id/export": typeof ApiOrdersIdExportRoute;
 	"/api/orders/$id/items": typeof ApiOrdersIdItemsRoute;
 }
 export interface FileRoutesById {
@@ -178,6 +186,7 @@ export interface FileRoutesById {
 	"/api/orders/$id": typeof ApiOrdersIdRouteWithChildren;
 	"/api/webhook/whatsapp": typeof ApiWebhookWhatsappRoute;
 	"/api/orders/$id/confirm": typeof ApiOrdersIdConfirmRoute;
+	"/api/orders/$id/export": typeof ApiOrdersIdExportRoute;
 	"/api/orders/$id/items": typeof ApiOrdersIdItemsRoute;
 }
 export interface FileRouteTypes {
@@ -200,6 +209,7 @@ export interface FileRouteTypes {
 		| "/api/orders/$id"
 		| "/api/webhook/whatsapp"
 		| "/api/orders/$id/confirm"
+		| "/api/orders/$id/export"
 		| "/api/orders/$id/items";
 	fileRoutesByTo: FileRoutesByTo;
 	to:
@@ -220,6 +230,7 @@ export interface FileRouteTypes {
 		| "/api/orders/$id"
 		| "/api/webhook/whatsapp"
 		| "/api/orders/$id/confirm"
+		| "/api/orders/$id/export"
 		| "/api/orders/$id/items";
 	id:
 		| "__root__"
@@ -240,6 +251,7 @@ export interface FileRouteTypes {
 		| "/api/orders/$id"
 		| "/api/webhook/whatsapp"
 		| "/api/orders/$id/confirm"
+		| "/api/orders/$id/export"
 		| "/api/orders/$id/items";
 	fileRoutesById: FileRoutesById;
 }
@@ -379,6 +391,13 @@ declare module "@tanstack/react-router" {
 			preLoaderRoute: typeof ApiOrdersIdItemsRouteImport;
 			parentRoute: typeof ApiOrdersIdRoute;
 		};
+		"/api/orders/$id/export": {
+			id: "/api/orders/$id/export";
+			path: "/export";
+			fullPath: "/api/orders/$id/export";
+			preLoaderRoute: typeof ApiOrdersIdExportRouteImport;
+			parentRoute: typeof ApiOrdersIdRoute;
+		};
 		"/api/orders/$id/confirm": {
 			id: "/api/orders/$id/confirm";
 			path: "/confirm";
@@ -427,11 +446,13 @@ const ApiItemsRouteWithChildren = ApiItemsRoute._addFileChildren(
 
 interface ApiOrdersIdRouteChildren {
 	ApiOrdersIdConfirmRoute: typeof ApiOrdersIdConfirmRoute;
+	ApiOrdersIdExportRoute: typeof ApiOrdersIdExportRoute;
 	ApiOrdersIdItemsRoute: typeof ApiOrdersIdItemsRoute;
 }
 
 const ApiOrdersIdRouteChildren: ApiOrdersIdRouteChildren = {
 	ApiOrdersIdConfirmRoute: ApiOrdersIdConfirmRoute,
+	ApiOrdersIdExportRoute: ApiOrdersIdExportRoute,
 	ApiOrdersIdItemsRoute: ApiOrdersIdItemsRoute,
 };
 

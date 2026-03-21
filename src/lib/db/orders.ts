@@ -165,6 +165,16 @@ export function confirmOrder(id: number): Order | undefined {
 		.get();
 }
 
+/** Set order status to 'exported'. */
+export function markOrderExported(id: number): Order | undefined {
+	return db
+		.update(orders)
+		.set({ status: "exported" })
+		.where(eq(orders.id, id))
+		.returning()
+		.get();
+}
+
 // ─── Order Items ─────────────────────────────────────────────────────────────
 
 /** Add a single line item to an existing order. */

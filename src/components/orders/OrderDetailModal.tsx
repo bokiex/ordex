@@ -17,7 +17,14 @@ import {
 	TableRow,
 	Tooltip,
 } from "@heroui/react";
-import { AlertTriangle, Check, Plus, Trash2, UserPlus } from "lucide-react";
+import {
+	AlertTriangle,
+	Check,
+	Download,
+	Plus,
+	Trash2,
+	UserPlus,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { apiCall } from "@/hooks/useApi";
 import type { Debtor, Item, OrderItem, OrderWithItems } from "@/lib/db/types";
@@ -65,6 +72,7 @@ export function OrderDetailModal({
 	const [localOrder, setLocalOrder] = useState<OrderWithItems | null>(null);
 	const [saving, setSaving] = useState(false);
 	const [confirming, setConfirming] = useState(false);
+	const [exporting, setExporting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
 	// Preloaded reference data (loaded once when modal opens)
@@ -269,6 +277,49 @@ export function OrderDetailModal({
 			setError(e instanceof Error ? e.message : "Failed to confirm order");
 		} finally {
 			setConfirming(false);
+		}
+	};
+
+	const handleDownloadExcel = async () => {
+		if (localOrder.status === "draft") return;
+
+		setExporting(true);
+		setError(null);
+		try {
+			const response = await fetch(`/api/orders/${localOrder.id}/export`);
+			if (!response.ok) {
+				const payload = await response.json().catch(() => null);
+				const message =
+					payload && typeof payload.error === "string"
+						? payload.error
+						: "Failed to export order";
+				throw new Error(message);
+			}
+
+			const blob = await response.blob();
+			const disposition = response.headers.get("content-disposition");
+			const fileNameMatch = disposition?.match(/filename="?([^"]+)"?/i);
+			const filename = fileNameMatch?.[1] ?? `order-${localOrder.id}.xlsx`;
+
+			const blobUrl = URL.createObjectURL(blob);
+			const anchor = document.createElement("a");
+			anchor.href = blobUrl;
+			anchor.download = filename;
+			document.body.appendChild(anchor);
+			anchor.click();
+			anchor.remove();
+			URL.revokeObjectURL(blobUrl);
+
+			if (localOrder.status === "confirmed") {
+				setLocalOrder((previous) =>
+					previous ? { ...previous, status: "exported" } : previous,
+				);
+				onUpdated();
+			}
+		} catch (e) {
+			setError(e instanceof Error ? e.message : "Failed to export order");
+		} finally {
+			setExporting(false);
 		}
 	};
 
@@ -637,6 +688,17 @@ export function OrderDetailModal({
 					<Button variant="light" onPress={onClose}>
 						Close
 					</Button>
+					{!isDraft && (
+						<Button
+							color="primary"
+							variant="flat"
+							onPress={handleDownloadExcel}
+							isLoading={exporting}
+							startContent={<Download size={18} />}
+						>
+							Download Excel
+						</Button>
+					)}
 					{isDraft && (
 						<Button
 							color="success"
