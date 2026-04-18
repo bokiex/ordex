@@ -1,9 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { searchDebtors } from "@/lib/db/debtors";
-import { getDebtorItemPreferences } from "@/lib/db/invoices";
-import { createOrder } from "@/lib/db/orders";
-import { matchItem } from "@/lib/matcher/index";
-import { parseOrderMessage } from "@/lib/parser/index";
+import { createOrderFromMessage } from "@/lib/orders";
 import {
 	extractTextMessages,
 	type WhatsAppWebhookPayload,
@@ -56,87 +52,39 @@ export const Route = createFileRoute("/api/webhook/whatsapp")({
 				const results = [];
 
 				for (const msg of textMessages) {
-					try {
-						// 1. Parse the order message with AI
-						const today = new Date().toISOString().split("T")[0];
-						const parsed = await parseOrderMessage(msg.body, today);
+					const result = await createOrderFromMessage({
+						message: msg.body,
+						customerNameHint: msg.name,
+					});
 
-						// 2. Match customer — use WhatsApp contact name or parsed name
-						const customerName = parsed.customerName || msg.name || null;
-						let debtorCode: string | null = null;
-						let debtorName = customerName || "Unknown";
-						let agent: string | null = null;
-
-						if (customerName) {
-							const matchedDebtors = searchDebtors(customerName);
-							if (matchedDebtors.length > 0) {
-								debtorCode = matchedDebtors[0].code;
-								debtorName = matchedDebtors[0].companyName;
-								agent = matchedDebtors[0].agent;
-							}
-						}
-
-						// 3. Load customer preferences from invoice history
-						const preferences = debtorCode
-							? getDebtorItemPreferences(debtorCode)
-							: [];
-
-						const docDate = parsed.deliveryDate || today;
-
-						// 4. Match items using customer history
-						const lineItems = parsed.items.map((item) => {
-							const match = matchItem(item.itemName, preferences);
-							const unitPrice = match?.unitPrice ?? null;
-							return {
-								itemCode: match?.itemCode ?? null,
-								rawItemName: item.rawText,
-								description: match?.description ?? item.itemName,
-								uom: item.uom || match?.uom || null,
-								qty: item.qty,
-								unitPrice,
-								lineTotal: unitPrice != null ? unitPrice * item.qty : null,
-								matched: !!match,
-							};
-						});
-
-						// 5. Create draft order
-						const order = createOrder(
-							{
-								debtorCode,
-								debtorName,
-								agent,
-								docDate,
-								rawMessage: msg.body,
-								status: "draft",
-							},
-							lineItems,
-						);
-
-						results.push({
-							from: msg.from,
-							name: msg.name,
-							messageId: msg.messageId,
-							orderId: order.id,
-							itemCount: order.items.length,
-							matched: order.items.filter((i) => i.matched).length,
-						});
-
-						console.log(
-							`[WhatsApp] Created order #${order.id} from ${msg.name} (${msg.from}): ${order.items.length} items, ${order.items.filter((i) => i.matched).length} matched`,
-						);
-					} catch (e) {
-						const errMsg = e instanceof Error ? e.message : "Unknown error";
+					if (!result.success) {
 						console.error(
-							`[WhatsApp] Failed to parse message from ${msg.name} (${msg.from}):`,
-							errMsg,
+							`[WhatsApp] Failed to ${result.stage} message from ${msg.name} (${msg.from}):`,
+							result.error,
 						);
 						results.push({
 							from: msg.from,
 							name: msg.name,
 							messageId: msg.messageId,
-							error: errMsg,
+							error: result.error,
 						});
+						continue;
 					}
+
+					const order = result.order;
+
+					results.push({
+						from: msg.from,
+						name: msg.name,
+						messageId: msg.messageId,
+						orderId: order.id,
+						itemCount: order.items.length,
+						matched: order.items.filter((i) => i.matched).length,
+					});
+
+					console.log(
+						`[WhatsApp] Created order #${order.id} from ${msg.name} (${msg.from}): ${order.items.length} items, ${order.items.filter((i) => i.matched).length} matched`,
+					);
 				}
 
 				return Response.json({
