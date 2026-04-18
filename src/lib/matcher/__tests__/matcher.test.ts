@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DebtorItemPreference } from "@/lib/db/invoices";
+import { searchItems } from "@/lib/db/items";
 import { _findBestPreference, _tokenize, matchItem } from "../index";
+
+vi.mock("@/lib/db/items", () => ({
+	searchItems: vi.fn(() => []),
+}));
 
 // ─── Test data ──────────────────────────────────────────────────────────────
 
@@ -34,6 +39,10 @@ const preferences: DebtorItemPreference[] = [
 		orderCount: 20,
 	},
 ];
+
+beforeEach(() => {
+	vi.mocked(searchItems).mockReturnValue([]);
+});
 
 // ─── tokenize ───────────────────────────────────────────────────────────────
 
