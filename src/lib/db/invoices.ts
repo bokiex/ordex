@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, lte } from "drizzle-orm";
+import { and, count, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/db/index";
 import { invoiceHistory } from "@/db/schema";
 import type { InvoiceGroup, InvoiceHistoryLine } from "./types";
@@ -105,6 +105,10 @@ export function getDebtorItemPreferences(
 			description: invoiceHistory.description,
 			uom: invoiceHistory.uom,
 			orderCount: count(invoiceHistory.id),
+			lastUnitPrice:
+				sql<number>`(SELECT unit_price FROM invoice_history ih2 WHERE ih2.debtor_code = ${debtorCode} AND ih2.item_code = ${invoiceHistory.itemCode} ORDER BY ih2.doc_date DESC LIMIT 1)`.as(
+					"last_unit_price",
+				),
 		})
 		.from(invoiceHistory)
 		.where(eq(invoiceHistory.debtorCode, debtorCode))
@@ -112,27 +116,11 @@ export function getDebtorItemPreferences(
 		.orderBy(desc(count(invoiceHistory.id)))
 		.all();
 
-	// For each item, get the most recent unit price
-	return rows.map((row) => {
-		const latest = db
-			.select({ unitPrice: invoiceHistory.unitPrice })
-			.from(invoiceHistory)
-			.where(
-				and(
-					eq(invoiceHistory.debtorCode, debtorCode),
-					eq(invoiceHistory.itemCode, row.itemCode),
-				),
-			)
-			.orderBy(desc(invoiceHistory.docDate))
-			.limit(1)
-			.get();
-
-		return {
-			itemCode: row.itemCode,
-			description: row.description,
-			uom: row.uom,
-			lastUnitPrice: latest?.unitPrice ?? 0,
-			orderCount: row.orderCount,
-		};
-	});
+	return rows.map((row) => ({
+		itemCode: row.itemCode,
+		description: row.description,
+		uom: row.uom,
+		lastUnitPrice: row.lastUnitPrice ?? 0,
+		orderCount: row.orderCount,
+	}));
 }

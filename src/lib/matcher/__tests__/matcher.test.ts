@@ -1,6 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DebtorItemPreference } from "@/lib/db/invoices";
 import { _findBestPreference, _tokenize, matchItem } from "../index";
+
+const searchItemsMock = vi.fn();
+
+vi.mock("@/lib/db/items", () => ({
+	searchItems: (...args: unknown[]) => searchItemsMock(...args),
+}));
 
 // ─── Test data ──────────────────────────────────────────────────────────────
 
@@ -34,6 +40,10 @@ const preferences: DebtorItemPreference[] = [
 		orderCount: 20,
 	},
 ];
+
+beforeEach(() => {
+	searchItemsMock.mockReset();
+});
 
 // ─── tokenize ───────────────────────────────────────────────────────────────
 
@@ -106,11 +116,11 @@ describe("matchItem", () => {
 	});
 
 	it("returns null for unmatched item with no preferences", () => {
-		// matchItem calls searchItems which needs DB — but with empty prefs
-		// and a nonsense name, catalogue search should also fail
+		searchItemsMock.mockReturnValue([]);
+
 		const result = matchItem("xyznonexistent12345", []);
-		// Will try catalogue search (may return null if DB not seeded in test)
-		// The important thing is it doesn't throw
-		expect(result === null || result?.source === "catalogue").toBe(true);
+
+		expect(searchItemsMock).toHaveBeenCalledWith("xyznonexistent12345");
+		expect(result).toBeNull();
 	});
 });
