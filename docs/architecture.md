@@ -7,6 +7,7 @@ ordex/
 ├── docs/                          # Documentation & reference data
 │   ├── excel sheets/              # AutoCount reference Excel files
 │   ├── architecture.md            # This file
+│   ├── whatsapp-group-worker.md   # WhatsApp Web group worker setup + env vars
 │   ├── whatsapp-webhook.md        # WhatsApp integration docs
 │   ├── ai-order-parser.md         # AI parser docs
 │   ├── item-matcher.md            # Customer preference item matching
@@ -28,6 +29,8 @@ ordex/
 │   │   ├── matcher/               # Customer preference item matching
 │   │   ├── parser/                # AI order parser (Ollama)
 │   │   └── whatsapp/              # WhatsApp Cloud API types & helpers
+│   ├── workers/                   # Long-running worker entrypoints
+│   │   └── whatsapp-group/        # whatsapp-web.js group listener worker
 │   ├── routes/                    # TanStack Start file-based routes
 │   │   ├── api/                   # Server-only API handlers
 │   │   ├── orders.tsx             # Order list + detail modal
@@ -101,6 +104,8 @@ ordex/
 | `build` | `vite build` | Production build |
 | `test` | `vitest run` | Run all tests |
 | `lint` | `biome check --write ...` | Lint & format |
+| `whatsapp:start` | `bun run src/workers/whatsapp-group/index.ts` | Start the WhatsApp group worker |
+| `whatsapp:dev` | `bun run --watch src/workers/whatsapp-group/index.ts` | Run the worker with Bun watch mode |
 | `db:generate` | `drizzle-kit generate` | Generate migrations |
 | `db:migrate` | `drizzle-kit migrate` | Apply migrations |
 | `db:push` | `drizzle-kit push` | Push schema directly |
@@ -112,6 +117,14 @@ ordex/
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `WHATSAPP_VERIFY_TOKEN` | `ordex-dev-token` | Webhook verification token |
+| `ORDEX_API_URL` | `http://localhost:3000` | Base URL used by external workers to call Ordex APIs |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama API endpoint |
 | `OLLAMA_MODEL` | `qwen2.5:7b` | Ollama model for order parsing |
 | `ANTHROPIC_API_KEY` | — | Anthropic SDK (installed, not yet used) |
+| `WHATSAPP_SESSION_PATH` | `.wwebjs_auth` | LocalAuth session storage for the group worker |
+| `WHATSAPP_CACHE_PATH` | `.wwebjs_cache` | Local WhatsApp Web version cache |
+| `WHATSAPP_CLIENT_ID` | `ordex-group-worker` | WhatsApp group worker client id |
+| `WHATSAPP_RECONNECT_DELAY_MS` | `5000` | Worker reconnect delay after disconnect/auth failure |
+| `WHATSAPP_PUPPETEER_HEADLESS` | `true` | Whether the worker launches Chrome headlessly |
+| `WHATSAPP_CHROME_EXECUTABLE_PATH` | — | Optional system Chrome/Chromium path |
+| `WHATSAPP_QR_SMALL` | `true` | Render a compact QR code in the terminal |

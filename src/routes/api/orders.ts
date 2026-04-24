@@ -33,7 +33,7 @@ export const Route = createFileRoute("/api/orders")({
 			/**
 			 * Create a new order by parsing a WhatsApp message with AI.
 			 *
-			 * Body: { message: string, date?: string }
+			 * Body: { message: string, date?: string, customerNameHint?: string }
 			 *
 			 * Flow:
 			 * 1. Parse message via Ollama
@@ -52,9 +52,20 @@ export const Route = createFileRoute("/api/orders")({
 					);
 				}
 
+				if (
+					body.customerNameHint != null &&
+					typeof body.customerNameHint !== "string"
+				) {
+					return Response.json(
+						{ error: "Invalid 'customerNameHint' field" },
+						{ status: 400 },
+					);
+				}
+
 				const result = await createOrderFromMessage({
 					message: body.message,
 					date: body.date,
+					customerNameHint: body.customerNameHint,
 				});
 
 				if (!result.success) {

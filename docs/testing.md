@@ -1,6 +1,6 @@
 # Testing
 
-**Framework:** Vitest 3.0.5 with jsdom environment
+**Framework:** Vitest 3.0.5 with node environment
 **Config:** `vitest.config.ts` — includes all `src/**/*.test.ts`
 **Run:** `bun run test`
 
@@ -11,9 +11,12 @@
 | WhatsApp | `src/lib/whatsapp/__tests__/types.test.ts` | 7 | Unit (pure logic) |
 | Parser | `src/lib/parser/__tests__/parser.test.ts` | 10 | Unit (pure logic) |
 | Matcher | `src/lib/matcher/__tests__/matcher.test.ts` | 13 | Unit (pure logic) |
-| **Total** | | **30** | |
+| WhatsApp Group Worker | `src/workers/whatsapp-group/__tests__/config.test.ts` | 3 | Unit (env parsing) |
+| WhatsApp Group Worker | `src/workers/whatsapp-group/__tests__/client.test.ts` | 2 | Unit (client options) |
+| WhatsApp Group Worker | `src/workers/whatsapp-group/__tests__/handlers.test.ts` | 6 | Unit (message filtering + mocked fetch) |
+| **Total** | | **41** | |
 
-All tests are pure logic — no network calls, no database, no mocking needed.
+Tests remain unit-scoped. The worker handler tests use mocked `fetch` and logger calls; no tests hit the network or database.
 
 ## WhatsApp Tests (7)
 
@@ -57,15 +60,31 @@ All tests are pure logic — no network calls, no database, no mocking needed.
 | 12 | matchItem specific match | More tokens = better match |
 | 13 | matchItem fallback | Catalogue fallback for unknown items |
 
+## WhatsApp Group Worker Tests (11)
+
+| # | Test | What It Validates |
+|---|------|-------------------|
+| 1 | Config defaults | Default API URL, session/cache paths, reconnect delay |
+| 2 | Config overrides | Env-driven API/session/cache/browser overrides |
+| 3 | Config invalid env | Invalid URL / reconnect values throw |
+| 4 | Client uses LocalAuth | Session persistence is configured via `LocalAuth` |
+| 5 | Client cache options | Local web cache + Puppeteer options are wired |
+| 6 | Sender name preference | `pushname` wins over other contact fields |
+| 7 | Sender fallback | Contact-less messages fall back to WhatsApp id |
+| 8 | Build order payload | `customerNameHint` included only when present |
+| 9 | Skip non-group chats | Direct messages are ignored |
+| 10 | Process group message | Group messages are logged and posted to `/api/orders` |
+| 11 | Skip empty group message | Blank group messages are ignored before any API call |
+
 ## Manual API Testing
 
 See `docs/test-examples.md` for curl commands with real customer/item data to test the full pipeline.
 
 ## Test Patterns Used
 
-- **No mocking:** Tests validate pure functions (prompt building, JSON validation, token matching)
+- **Light mocking:** Worker handler tests mock `fetch` and logger calls; all other tests stay pure
 - **No network:** Ollama API is not called in tests
-- **Barrel imports:** Tests import from module index (`@/lib/parser`, `@/lib/whatsapp`)
+- **Imports:** Existing lib tests use module barrels; worker tests import module-local files directly because the worker has no barrel yet
 - **Path aliases:** Uses `@/` prefix via `vite-tsconfig-paths`
 
 ## Adding New Tests

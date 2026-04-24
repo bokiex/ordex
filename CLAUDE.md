@@ -105,7 +105,7 @@ Line-item fields:
 
 ## Workflow
 
-1. WhatsApp message arrives via webhook (or manually via `POST /api/orders`)
+1. WhatsApp message arrives via webhook, WhatsApp Web group worker, or manually via `POST /api/orders`
 2. AI parser (Ollama) extracts: customer name, items ordered, quantities, UOMs
 3. Match customer → debtor code (fuzzy match against Company Name / alias / code)
 4. Load customer's item preferences from invoice history (`getDebtorItemPreferences`)
@@ -121,12 +121,13 @@ Detailed docs for each feature are in `docs/` to reduce codebase traversal:
 |-----|--------|
 | `docs/architecture.md` | Directory structure, tech stack, config files, env vars, scripts |
 | `docs/whatsapp-webhook.md` | WhatsApp types, `extractTextMessages()`, mock payloads, webhook → order creation |
+| `docs/whatsapp-group-worker.md` | `whatsapp-web.js` group worker, env vars, QR auth, worker lifecycle |
 | `docs/ai-order-parser.md` | Ollama integration, prompt template, `ParsedOrder` types, validation |
 | `docs/item-matcher.md` | Customer preference matching, `matchItem()`, `getDebtorItemPreferences()` |
 | `docs/database.md` | All 5 table schemas, relationships, seed script, migration commands |
 | `docs/api-routes.md` | All API endpoints with request/response shapes |
 | `docs/frontend.md` | Route structure, components, UI libraries, styling setup |
-| `docs/testing.md` | Test coverage (30 tests), patterns, how to add tests |
+| `docs/testing.md` | Test coverage (41 tests), patterns, how to add tests |
 | `docs/test-examples.md` | Curl commands for testing order creation with real customer data |
 
 **Read these docs first before traversing `src/` — they contain file locations, type definitions, function signatures, and implementation details.**
@@ -139,6 +140,8 @@ Detailed docs for each feature are in `docs/` to reduce codebase traversal:
 | `build` | `vite build` | Production build |
 | `test` | `vitest run` | Run all tests |
 | `lint` | `biome check --write ...` | Lint & format |
+| `whatsapp:start` | `bun run src/workers/whatsapp-group/index.ts` | Start WhatsApp group worker |
+| `whatsapp:dev` | `bun run --watch src/workers/whatsapp-group/index.ts` | Start worker in watch mode |
 | `db:generate` | `drizzle-kit generate` | Generate migrations |
 | `db:migrate` | `drizzle-kit migrate` | Apply migrations |
 | `db:push` | `drizzle-kit push` | Push schema directly |
@@ -180,6 +183,7 @@ See `docs/api-routes.md` for full request/response schemas.
 ## Key Modules
 
 - `src/lib/whatsapp/` — WhatsApp Cloud API types, mock payloads, message extraction → see `docs/whatsapp-webhook.md`
+- `src/workers/whatsapp-group/` — `whatsapp-web.js` group worker, session config, message forwarding → see `docs/whatsapp-group-worker.md`
 - `src/lib/parser/` — AI order parser (Ollama client, prompt template, validation) → see `docs/ai-order-parser.md`
 - `src/lib/matcher/` — Customer preference item matching from invoice history → see `docs/item-matcher.md`
 - `src/lib/db/` — DB query functions (orders, items, debtors, invoices) → see `docs/database.md`

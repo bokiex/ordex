@@ -149,3 +149,5 @@ dist
 # End of https://www.toptal.com/developers/gitignore/api/node
 # Build output
 .output/
+.wwebjs_auth/
+.wwebjs_cache/

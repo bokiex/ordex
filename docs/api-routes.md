@@ -117,13 +117,14 @@ All routes use TanStack Start's `server.handlers` pattern (not `createServerFn`)
 ```json
 {
   "message": "string (required) — raw order text",
-  "date": "string (optional) — date context"
+  "date": "string (optional) — date context",
+  "customerNameHint": "string (optional) — sender/contact name from the caller"
 }
 ```
 
 **Logic:**
 1. Parse message via Ollama → `ParsedOrder`
-2. Match customer name → debtor code (populates `debtorCode`, `debtorName`, `agent`)
+2. Match customer name → debtor code using parsed customer name first, then `customerNameHint` (populates `debtorCode`, `debtorName`, `agent`)
 3. Load `getDebtorItemPreferences(debtorCode)` for customer's purchase history
 4. For each parsed item, call `matchItem(itemName, preferences)`:
    - Tries customer history first (preferred manufacturer)
@@ -135,6 +136,7 @@ All routes use TanStack Start's `server.handlers` pattern (not `createServerFn`)
 
 **Error Responses:**
 - `400` — Missing/invalid `message` field
+- `400` — Invalid `customerNameHint` field
 - `502` — Ollama failure
 - `500` — DB error
 
