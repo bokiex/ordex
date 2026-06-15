@@ -1,6 +1,7 @@
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import type {
 	debtors,
+	incomingMessages,
 	invoiceHistory,
 	items,
 	orderItems,
@@ -14,6 +15,10 @@ export type NewItem = InferInsertModel<typeof items>;
 
 export type Debtor = InferSelectModel<typeof debtors>;
 export type NewDebtor = InferInsertModel<typeof debtors>;
+
+export type IncomingMessage = InferSelectModel<typeof incomingMessages>;
+export type NewIncomingMessage = InferInsertModel<typeof incomingMessages>;
+export type IncomingMessageStatus = "new" | "used";
 
 export type Order = InferSelectModel<typeof orders>;
 export type NewOrder = InferInsertModel<typeof orders>;

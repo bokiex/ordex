@@ -1,4 +1,5 @@
 export * from "./debtors";
+export * from "./incomingMessages";
 export * from "./invoices";
 export * from "./items";
 export * from "./orders";

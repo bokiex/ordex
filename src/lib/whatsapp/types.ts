@@ -154,17 +154,17 @@ export function extractTextMessages(payload: WhatsAppWebhookPayload): Array<{
 	for (const entry of payload.entry) {
 		for (const change of entry.changes) {
 			const { contacts, messages } = change.value;
-			if (!messages || !contacts) continue;
+			if (!messages) continue;
 
 			const contactMap = new Map(
-				contacts.map((c) => [c.wa_id, c.profile.name]),
+				(contacts ?? []).map((c) => [c.wa_id, c.profile.name]),
 			);
 
 			for (const msg of messages) {
 				if (msg.type === "text" && msg.text?.body) {
 					results.push({
 						from: msg.from,
-						name: contactMap.get(msg.from) ?? "Unknown",
+						name: contactMap.get(msg.from) ?? msg.from,
 						messageId: msg.id,
 						timestamp: msg.timestamp,
 						body: msg.text.body,

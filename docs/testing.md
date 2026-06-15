@@ -71,9 +71,9 @@ Tests remain unit-scoped. The worker handler tests use mocked `fetch` and logger
 | 5 | Client cache options | Local web cache + Puppeteer options are wired |
 | 6 | Sender name preference | `pushname` wins over other contact fields |
 | 7 | Sender fallback | Contact-less messages fall back to WhatsApp id |
-| 8 | Build order payload | `customerNameHint` included only when present |
+| 8 | Build incoming-message payload | Sender metadata included when present |
 | 9 | Skip non-group chats | Direct messages are ignored |
-| 10 | Process group message | Group messages are logged and posted to `/api/orders` |
+| 10 | Process group message | Group messages are logged and posted to `/api/incoming-messages` |
 | 11 | Skip empty group message | Blank group messages are ignored before any API call |
 
 ## Manual API Testing

@@ -8,6 +8,13 @@
 			"when": 1772536245388,
 			"tag": "0000_right_revanche",
 			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "6",
+			"when": 1781516119928,
+			"tag": "0001_daily_kang",
+			"breakpoints": true
 		}
 	]
 }

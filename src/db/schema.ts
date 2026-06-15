@@ -63,6 +63,21 @@ export const orders = sqliteTable("orders", {
 		.$defaultFn(() => new Date().toISOString()),
 });
 
+/** Raw incoming WhatsApp messages awaiting review/order generation */
+export const incomingMessages = sqliteTable("incoming_messages", {
+	id: integer("id").primaryKey({ autoIncrement: true }),
+	from: text("from").notNull(),
+	senderName: text("sender_name").notNull(),
+	whatsappMessageId: text("whatsapp_message_id").notNull().unique(),
+	timestamp: text("timestamp").notNull(),
+	body: text("body").notNull(),
+	status: text("status").notNull().default("new"), // new | used
+	sourceOrderId: integer("source_order_id").references(() => orders.id),
+	createdAt: text("created_at")
+		.notNull()
+		.$defaultFn(() => new Date().toISOString()),
+});
+
 /** Line items for each order */
 export const orderItems = sqliteTable("order_items", {
 	id: integer("id").primaryKey({ autoIncrement: true }),

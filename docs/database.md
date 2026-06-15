@@ -11,11 +11,12 @@ SQLite database via Drizzle ORM + better-sqlite3. WAL mode enabled, foreign keys
 
 | File | Purpose |
 |------|---------|
-| `src/db/schema.ts` | All 5 table definitions |
-| `src/db/index.ts` | DB connection (WAL mode, FK enabled) |
+| `src/db/schema.ts` | All 6 table definitions |
+| `src/db/index.ts` | DB connection (WAL mode, FK enabled, compatibility bootstrap for `incoming_messages`) |
 | `src/db/seed.ts` | Excel → DB seeder |
 | `drizzle.config.ts` | Drizzle ORM config |
 | `drizzle/0000_right_revanche.sql` | Initial migration |
+| `drizzle/0001_daily_kang.sql` | Adds `incoming_messages` |
 
 ## Connection (`src/db/index.ts`)
 
@@ -88,6 +89,20 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 | `status` | TEXT | NOT NULL, default `draft` | `draft` / `confirmed` / `exported` |
 | `created_at` | TEXT | NOT NULL | ISO timestamp, auto-set |
 
+### `incoming_messages` — Raw WhatsApp Messages Awaiting Review
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | INTEGER | PK AUTO | |
+| `from` | TEXT | NOT NULL | Sender phone/id |
+| `sender_name` | TEXT | NOT NULL | WhatsApp contact/group-worker display name |
+| `whatsapp_message_id` | TEXT | NOT NULL, UNIQUE | Deduplicates webhook/worker deliveries |
+| `timestamp` | TEXT | NOT NULL | WhatsApp timestamp string |
+| `body` | TEXT | NOT NULL | Raw message body |
+| `status` | TEXT | NOT NULL, default `new` | `new` / `used` |
+| `source_order_id` | INTEGER | FK → orders.id | Set after selected messages generate an order |
+| `created_at` | TEXT | NOT NULL | ISO timestamp, auto-set |
+
 ### `order_items` — Order Line Items
 
 | Column | Type | Constraints | Notes |
@@ -107,6 +122,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 
 ```
 debtors.code ←── orders.debtor_code
+orders.id    ←── incoming_messages.source_order_id
 items.code   ←── order_items.item_code
 orders.id    ←── order_items.order_id
 ```

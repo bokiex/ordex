@@ -5,7 +5,7 @@ import type { WhatsAppGroupWorkerConfig } from "../config.ts";
 
 const config: WhatsAppGroupWorkerConfig = {
 	apiUrl: "http://localhost:3000",
-	ordersEndpoint: "http://localhost:3000/api/orders",
+	incomingMessagesEndpoint: "http://localhost:3000/api/incoming-messages",
 	sessionPath: "/tmp/ordex-auth",
 	cachePath: "/tmp/ordex-cache",
 	clientId: "ordex-test-worker",

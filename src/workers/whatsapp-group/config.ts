@@ -8,7 +8,7 @@ const DEFAULT_RECONNECT_DELAY_MS = 5_000;
 
 export type WhatsAppGroupWorkerConfig = {
 	apiUrl: string;
-	ordersEndpoint: string;
+	incomingMessagesEndpoint: string;
 	sessionPath: string;
 	cachePath: string;
 	clientId: string;
@@ -28,8 +28,8 @@ export function getWhatsAppGroupWorkerConfig(
 
 	return {
 		apiUrl: stripTrailingSlash(apiUrl.toString()),
-		ordersEndpoint: new URL(
-			"api/orders",
+		incomingMessagesEndpoint: new URL(
+			"api/incoming-messages",
 			ensureTrailingSlash(apiUrl),
 		).toString(),
 		sessionPath: resolve(env.WHATSAPP_SESSION_PATH ?? DEFAULT_SESSION_PATH),

@@ -24,7 +24,7 @@ All routes use TanStack Start's `server.handlers` pattern (not `createServerFn`)
 ### `POST /api/webhook/whatsapp`
 
 **File:** `src/routes/api/webhook.whatsapp.ts`
-**Purpose:** Receive WhatsApp messages, parse orders with AI, match items using customer history, create draft orders
+**Purpose:** Receive WhatsApp Cloud API messages and store text messages for review/order generation
 
 **Request Body:** `WhatsAppWebhookPayload` (from Meta Cloud API)
 
@@ -33,30 +33,93 @@ All routes use TanStack Start's `server.handlers` pattern (not `createServerFn`)
 2. Calls `extractTextMessages(payload)`
 3. Non-text messages → `200` empty body
 4. For each text message:
-   a. Parses with AI (`parseOrderMessage`)
-   b. Matches customer via `searchDebtors` (uses WhatsApp contact name or parsed name)
-   c. Loads customer item preferences from `getDebtorItemPreferences`
-   d. Matches each item via `matchItem` (history-first, catalogue fallback)
-   e. Creates draft order with `createOrder`
+   a. Inserts `incoming_messages` row
+   b. Deduplicates by WhatsApp message ID
+   c. Publishes an `incoming-message` SSE event for newly inserted rows
 
 **Response (success):**
 ```json
 {
   "received": 1,
-  "orders": [
+  "messages": [
     {
       "from": "6591234567",
       "name": "Customer Name",
       "messageId": "wamid.xxx",
-      "orderId": 1,
-      "itemCount": 3,
-      "matched": 3
+      "incomingMessageId": 1,
+      "duplicate": false
     }
   ]
 }
 ```
 
-**Response (partial failure):** If one message fails to parse, its entry has an `error` field instead of `orderId`.
+---
+
+### `GET /api/incoming-messages`
+
+**File:** `src/routes/api/incoming-messages.ts`
+**Purpose:** List raw incoming WhatsApp messages for manual review
+
+**Query Params:**
+- `?status=new|used` — optional filter
+
+**Response:** Array of incoming message rows, newest first.
+
+---
+
+### `POST /api/incoming-messages`
+
+**File:** `src/routes/api/incoming-messages.ts`
+**Purpose:** Store raw worker messages, or generate a draft order from selected incoming messages
+
+**Raw message request body:**
+```json
+{
+  "message": "string (required)",
+  "customerNameHint": "string (optional)",
+  "senderName": "string (optional)",
+  "from": "string (optional)",
+  "timestamp": "string (optional)",
+  "whatsappMessageId": "string (optional)"
+}
+```
+
+Used by the WhatsApp group worker. This path does not parse with AI; it only stores the message and returns `201` for a new row or `200` for a duplicate.
+
+**Generate order request body:**
+```json
+{
+  "messageIds": [1, 2, 3]
+}
+```
+
+**Generate order logic:**
+1. Loads selected `new` incoming messages in timestamp order
+2. Rejects selections spanning more than one sender
+3. Combines message bodies with newlines
+4. Parses combined text through `createOrderFromMessage`
+5. Creates a draft order
+6. Marks selected messages as `used` with `sourceOrderId`
+
+**Error Responses:**
+- `400` — Missing/invalid request fields, or messages from multiple senders
+- `409` — One or more selected messages are unavailable or already used
+- `502` — Ollama failure during generate-order flow
+- `500` — DB error
+
+---
+
+### `GET /api/events/incoming-messages`
+
+**File:** `src/routes/api/events.incoming-messages.ts`
+**Purpose:** Server-Sent Events stream for live incoming-message updates
+
+**Events:**
+- `connected` — sent when the stream opens
+- `incoming-message` — sent after a new incoming message row is inserted
+- `: keepalive` comment every 25 seconds
+
+The browser listens with `EventSource` and refetches `/api/incoming-messages?status=new` when `incoming-message` arrives. The current broker is in-process; multi-instance deployments need shared pub/sub.
 
 ---
 

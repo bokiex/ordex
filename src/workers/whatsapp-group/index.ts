@@ -75,7 +75,7 @@ export async function startWhatsAppGroupWorker(
 	};
 
 	registerWhatsAppGroupMessageHandler(client, {
-		ordersEndpoint: config.ordersEndpoint,
+		incomingMessagesEndpoint: config.incomingMessagesEndpoint,
 		logger: console,
 	});
 
@@ -93,7 +93,7 @@ export async function startWhatsAppGroupWorker(
 	client.on("ready", () => {
 		clearReconnectTimer();
 		console.info(
-			`[WhatsApp Group Worker] Ready. Forwarding group messages to ${config.ordersEndpoint}.`,
+			`[WhatsApp Group Worker] Ready. Forwarding group messages to ${config.incomingMessagesEndpoint}.`,
 		);
 	});
 

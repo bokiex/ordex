@@ -26,6 +26,7 @@ ordex/
 │   ├── hooks/                     # React hooks (useApi, useDebounce)
 │   ├── lib/                       # Feature modules
 │   │   ├── db/                    # DB query functions (orders, items, debtors, invoices)
+│   │   ├── events/                # In-process SSE event brokers
 │   │   ├── matcher/               # Customer preference item matching
 │   │   ├── parser/                # AI order parser (Ollama)
 │   │   └── whatsapp/              # WhatsApp Cloud API types & helpers
@@ -70,6 +71,18 @@ ordex/
 | Build | Vite | 7.1.7 |
 | Tests | Vitest | 3.0.5 |
 | Server | Nitro (nightly) | latest |
+
+## Incoming Message Flow
+
+Ordex now separates message receipt from order generation:
+
+1. Meta webhook (`POST /api/webhook/whatsapp`) or WhatsApp group worker (`POST /api/incoming-messages`) stores raw text in `incoming_messages`.
+2. Newly inserted messages publish an in-process `incoming-message` event.
+3. The Orders page listens to `GET /api/events/incoming-messages` with `EventSource` and refetches incoming messages when events arrive.
+4. Users select one or more messages from the same sender/customer in the Incoming Messages tab.
+5. `POST /api/incoming-messages` with `{ messageIds }` combines the selected bodies, runs AI parsing/matching, creates a draft order, and marks the source messages `used`.
+
+The SSE broker is process-local. If the app is deployed with multiple server instances, replace it with shared pub/sub such as Redis, database notifications, or a managed event bus.
 
 ## Configuration Files
 

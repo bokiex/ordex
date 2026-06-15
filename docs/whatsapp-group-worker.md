@@ -5,7 +5,9 @@
 
 ## Overview
 
-Runs a separate `whatsapp-web.js` worker process that listens to WhatsApp Web group messages, logs each inbound group message, and forwards the raw text to `POST /api/orders` with the sender name as `customerNameHint`.
+Runs a separate `whatsapp-web.js` worker process that listens to WhatsApp Web group messages, logs each inbound group message, and forwards the raw text to `POST /api/incoming-messages` with sender metadata.
+
+The worker does not parse messages or create orders directly. Messages land in the Incoming Messages tab, where users can select one or more fragments from the same customer and generate a draft order with AI.
 
 This is separate from the existing Meta Cloud API webhook flow. The worker is useful when the source messages live in shared WhatsApp groups instead of a business webhook inbox.
 
@@ -15,7 +17,7 @@ This is separate from the existing Meta Cloud API webhook flow. The worker is us
 |------|---------|
 | `src/workers/whatsapp-group/config.ts` | Reads env vars and resolves API/session/cache config |
 | `src/workers/whatsapp-group/client.ts` | Creates a `whatsapp-web.js` client with `LocalAuth` |
-| `src/workers/whatsapp-group/handlers.ts` | Filters group messages, logs them, and posts them to `/api/orders` |
+| `src/workers/whatsapp-group/handlers.ts` | Filters group messages, logs them, and posts them to `/api/incoming-messages` |
 | `src/workers/whatsapp-group/index.ts` | Main worker entrypoint, QR auth, lifecycle hooks, reconnect handling |
 | `src/workers/whatsapp-group/__tests__/` | Unit tests for config parsing, client options, and handler logic |
 
@@ -76,15 +78,20 @@ pnpm whatsapp:dev
 - Messages sent by the worker account itself are skipped
 - Sender names come from the WhatsApp contact (`pushname` → `name` → `shortName` → number)
 - Every group message is logged with timestamp, group name, sender, and flattened message body
-- Orders are created by `POST`ing to `/api/orders` with:
+- Incoming messages are stored by `POST`ing to `/api/incoming-messages` with:
 
 ```json
 {
   "message": "raw group message text",
-  "customerNameHint": "sender display name"
+  "customerNameHint": "sender display name",
+  "from": "6591111111",
+  "timestamp": "1713900000",
+  "whatsappMessageId": "wamid.xxx"
 }
 ```
 
+- The API returns success after storage; incomplete or non-order fragments do not fail AI parsing at receive time
+- A newly stored message publishes an `incoming-message` SSE event so the web app refreshes automatically
 - `disconnected` and `auth_failure` events schedule an automatic reconnect attempt after `WHATSAPP_RECONNECT_DELAY_MS`
 
 ## Example `.env.local`

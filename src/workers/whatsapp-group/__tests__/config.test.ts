@@ -6,7 +6,9 @@ describe("getWhatsAppGroupWorkerConfig", () => {
 		const config = getWhatsAppGroupWorkerConfig({});
 
 		expect(config.apiUrl).toBe("http://localhost:3000");
-		expect(config.ordersEndpoint).toBe("http://localhost:3000/api/orders");
+		expect(config.incomingMessagesEndpoint).toBe(
+			"http://localhost:3000/api/incoming-messages",
+		);
 		expect(config.clientId).toBe("ordex-group-worker");
 		expect(config.reconnectDelayMs).toBe(5_000);
 		expect(config.qrSmall).toBe(true);
@@ -28,8 +30,8 @@ describe("getWhatsAppGroupWorkerConfig", () => {
 		});
 
 		expect(config.apiUrl).toBe("https://ordex.example/internal");
-		expect(config.ordersEndpoint).toBe(
-			"https://ordex.example/internal/api/orders",
+		expect(config.incomingMessagesEndpoint).toBe(
+			"https://ordex.example/internal/api/incoming-messages",
 		);
 		expect(config.clientId).toBe("ops-bot");
 		expect(config.reconnectDelayMs).toBe(9_000);

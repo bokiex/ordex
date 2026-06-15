@@ -55,7 +55,7 @@ describe("extractTextMessages", () => {
 		expect(messages).toHaveLength(0);
 	});
 
-	it("handles payload with no contacts gracefully", () => {
+	it("extracts text messages without contacts using sender as name fallback", () => {
 		const payload: WhatsAppWebhookPayload = {
 			object: "whatsapp_business_account",
 			entry: [
@@ -87,7 +87,12 @@ describe("extractTextMessages", () => {
 		};
 
 		const messages = extractTextMessages(payload);
-		expect(messages).toHaveLength(0);
+		expect(messages).toHaveLength(1);
+		expect(messages[0]).toMatchObject({
+			from: "6581234567",
+			name: "6581234567",
+			body: "Hello",
+		});
 	});
 
 	it("ignores non-text message types", () => {

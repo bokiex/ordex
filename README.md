@@ -1,193 +1,141 @@
-Welcome to your new TanStack Start app! 
+# Ordex
 
-# Getting Started
+Ordex turns WhatsApp customer order messages into reviewable draft orders. Incoming text messages are stored first, grouped by customer in the Orders page, and only sent to AI when a user selects the relevant message fragments and clicks **Generate order**.
 
-To run this application:
+## Prerequisites
+
+- Node.js 22
+- pnpm 10
+- Bun, used by the database seed script and WhatsApp group worker
+- SQLite, via `better-sqlite3`
+- Ollama running locally for AI order generation
+
+The default parser expects Ollama at `http://localhost:11434` with model `qwen2.5:7b`.
+
+## Install
 
 ```bash
 pnpm install
+```
+
+## Database
+
+The app uses `ordex.db` in the project root by default.
+
+Apply migrations:
+
+```bash
+pnpm db:migrate
+```
+
+Seed reference data from the Excel files in `docs/excel sheets/`:
+
+```bash
+pnpm db:seed
+```
+
+Useful database commands:
+
+```bash
+pnpm db:generate
+pnpm db:push
+pnpm db:studio
+```
+
+## Run The Web App
+
+Start the TanStack Start dev server:
+
+```bash
 pnpm dev
 ```
 
-# Building For Production
+Open `http://localhost:3000`.
 
-To build this application for production:
+The main workflow is in **Orders**:
 
-```bash
-pnpm build
+- **Incoming Messages** shows raw WhatsApp messages grouped by sender/customer.
+- Select one or more messages from the same sender.
+- Click **Generate order** to combine those fragments, parse them with AI, and create a draft order.
+- The generated draft opens in the order detail modal for review and correction.
+
+The page listens to `GET /api/events/incoming-messages` with Server-Sent Events, so newly received messages should appear without a hard refresh. A polling fallback also refreshes the page periodically.
+
+## WhatsApp Inputs
+
+Ordex supports two receive paths.
+
+### Meta Cloud API Webhook
+
+Configure Meta to call:
+
+```text
+GET/POST /api/webhook/whatsapp
 ```
 
-## Testing
+Set the verification token with:
 
-This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
+```bash
+WHATSAPP_VERIFY_TOKEN=ordex-dev-token
+```
+
+Webhook text messages are stored in `incoming_messages`; they do not create orders immediately.
+
+### WhatsApp Group Worker
+
+For shared WhatsApp groups, run the worker in a second terminal after the web app is running:
+
+```bash
+pnpm whatsapp:start
+```
+
+For development with watch mode:
+
+```bash
+pnpm whatsapp:dev
+```
+
+On first startup, scan the QR code printed in the terminal. The worker forwards group messages to `POST /api/incoming-messages`, where they are stored for review.
+
+Common worker environment variables:
+
+```bash
+ORDEX_API_URL=http://localhost:3000
+WHATSAPP_SESSION_PATH=.wwebjs_auth
+WHATSAPP_CACHE_PATH=.wwebjs_cache
+WHATSAPP_RECONNECT_DELAY_MS=5000
+WHATSAPP_PUPPETEER_HEADLESS=true
+WHATSAPP_CHROME_EXECUTABLE_PATH=/path/to/chrome
+```
+
+## Build And Test
+
+Run tests:
 
 ```bash
 pnpm test
 ```
 
-## Styling
+Build for production:
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
-
-### Removing Tailwind CSS
-
-If you prefer not to use Tailwind CSS:
-
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Uninstall the packages: `pnpm add @tailwindcss/vite tailwindcss --dev`
-
-
-
-## Routing
-
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
+```bash
+pnpm build
 ```
 
-Then anywhere in your JSX you can use it like so:
+Preview a production build:
 
-```tsx
-<Link to="/about">About</Link>
+```bash
+pnpm preview
 ```
 
-This will create a link that will navigate to the `/about` route.
+## Documentation
 
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-  
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-  
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-# Demo files
-
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+- `docs/architecture.md` — project structure and message flow
+- `docs/database.md` — schema and migrations
+- `docs/api-routes.md` — API endpoint behavior
+- `docs/frontend.md` — UI routes and patterns
+- `docs/whatsapp-webhook.md` — Meta webhook integration
+- `docs/whatsapp-group-worker.md` — WhatsApp Web worker setup
+- `docs/ai-order-parser.md` — AI parser behavior
+- `docs/item-matcher.md` — customer-history item matching
+- `docs/test-examples.md` — curl examples

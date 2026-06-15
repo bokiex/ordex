@@ -90,9 +90,9 @@ curl -X POST http://localhost:3000/api/orders \
 
 **Expected:** All items matched via catalogue search (`source: "catalogue"`), no price populated.
 
-## 2. POST /api/webhook/whatsapp — WhatsApp Webhook
+## 2. POST /api/webhook/whatsapp — Store Incoming WhatsApp Message
 
-Simulates a WhatsApp message arriving. The webhook now fully processes the message: parses with AI, matches customer + items, and creates a draft order.
+Simulates a WhatsApp message arriving. The webhook stores the raw text in `incoming_messages` and publishes an SSE refresh event. It does not parse with AI or create an order until messages are selected for generation.
 
 ```bash
 curl -X POST http://localhost:3000/api/webhook/whatsapp \
@@ -124,18 +124,49 @@ curl -X POST http://localhost:3000/api/webhook/whatsapp \
 ```json
 {
   "received": 1,
-  "orders": [{
-    "from": "6591234567",
-    "name": "Encik Tan",
-    "messageId": "wamid.test123",
-    "orderId": 1,
-    "itemCount": 3,
-    "matched": 3
-  }]
+  "messages": [
+    {
+      "from": "6591234567",
+      "name": "Encik Tan",
+      "messageId": "wamid.test123",
+      "incomingMessageId": 1,
+      "duplicate": false
+    }
+  ]
 }
 ```
 
-## 3. Verify Order Details
+## 3. POST /api/incoming-messages — Store Worker Message
+
+Simulates the WhatsApp group worker forwarding a raw group message fragment. This path also stores only; incomplete order fragments should still succeed.
+
+```bash
+curl -X POST http://localhost:3000/api/incoming-messages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "mee kia 3 pkt",
+    "customerNameHint": "Encik Tan",
+    "from": "6591234567",
+    "timestamp": "1709625601",
+    "whatsappMessageId": "worker-test-1"
+  }'
+```
+
+## 4. POST /api/incoming-messages — Generate Order from Selected Messages
+
+After storing one or more incoming messages from the same sender, pass their IDs to generate a draft order. This is the same API used by the Incoming Messages tab.
+
+```bash
+curl -X POST http://localhost:3000/api/incoming-messages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messageIds": [1, 2]
+  }'
+```
+
+**Expected:** `201` with full `OrderWithItems` JSON. The selected incoming messages are marked `used`.
+
+## 5. Verify Order Details
 
 After creating an order, inspect it:
 

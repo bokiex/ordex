@@ -15,19 +15,20 @@ export type IncomingMessageLike = Pick<
 	Message,
 	"author" | "body" | "fromMe"
 > & {
+	id?: string | { _serialized?: string };
 	timestamp: number;
 	getChat(): Promise<ChatLike>;
 	getContact(): Promise<ContactLike>;
 };
 
 export type GroupMessageHandlerOptions = {
-	ordersEndpoint: string;
+	incomingMessagesEndpoint: string;
 	fetchImpl?: typeof fetch;
 	logger?: WorkerLogger;
 };
 
 export type GroupMessageResult =
-	| { status: "processed"; orderId?: number }
+	| { status: "processed"; incomingMessageId?: number }
 	| { status: "skipped"; reason: "empty_body" | "from_me" | "not_group" };
 
 export function extractSenderName(
@@ -51,10 +52,25 @@ export function formatWhatsAppTimestamp(timestamp: number): string {
 export function buildOrderRequest(
 	message: string,
 	senderName: string,
-): { customerNameHint?: string; message: string } {
+	from?: string,
+	timestamp?: number,
+	whatsappMessageId?: string,
+): {
+	customerNameHint?: string;
+	from?: string;
+	message: string;
+	timestamp?: string;
+	whatsappMessageId?: string;
+} {
 	const customerNameHint = senderName.trim();
 
-	return customerNameHint ? { message, customerNameHint } : { message };
+	return compactObject({
+		customerNameHint,
+		from: normalizeWhatsAppId(from),
+		message,
+		timestamp: timestamp ? String(timestamp) : undefined,
+		whatsappMessageId,
+	});
 }
 
 export async function handleIncomingGroupMessage(
@@ -93,28 +109,35 @@ export async function handleIncomingGroupMessage(
 		`[WhatsApp Group Worker] ${timestamp} | ${groupName} | ${senderName} | ${collapseForLog(trimmedMessage)}`,
 	);
 
-	const response = await postOrderRequest(
-		buildOrderRequest(trimmedMessage, senderName),
+	const response = await postIncomingMessageRequest(
+		buildOrderRequest(
+			trimmedMessage,
+			senderName,
+			message.author,
+			message.timestamp,
+			getMessageId(message),
+		),
 		options,
 	);
 
 	if (!response.ok) {
 		throw new Error(
-			`Order creation failed (${response.status}): ${await readResponseText(response)}`,
+			`Incoming message save failed (${response.status}): ${await readResponseText(response)}`,
 		);
 	}
 
-	const order = await response
+	const result = await response
 		.json()
-		.catch(() => null as { id?: number } | null);
+		.catch(() => null as { message?: { id?: number } } | null);
 
 	options.logger?.info(
-		`[WhatsApp Group Worker] Created draft order${typeof order?.id === "number" ? ` #${order.id}` : ""} for ${groupName} / ${senderName}.`,
+		`[WhatsApp Group Worker] Stored incoming message${typeof result?.message?.id === "number" ? ` #${result.message.id}` : ""} for ${groupName} / ${senderName}.`,
 	);
 
 	return {
 		status: "processed",
-		orderId: typeof order?.id === "number" ? order.id : undefined,
+		incomingMessageId:
+			typeof result?.message?.id === "number" ? result.message.id : undefined,
 	};
 }
 
@@ -135,13 +158,19 @@ export function registerWhatsAppGroupMessageHandler(
 	});
 }
 
-async function postOrderRequest(
-	payload: { customerNameHint?: string; message: string },
+async function postIncomingMessageRequest(
+	payload: {
+		customerNameHint?: string;
+		from?: string;
+		message: string;
+		timestamp?: string;
+		whatsappMessageId?: string;
+	},
 	options: GroupMessageHandlerOptions,
 ): Promise<Response> {
 	const fetchImpl = options.fetchImpl ?? fetch;
 
-	return fetchImpl(options.ordersEndpoint, {
+	return fetchImpl(options.incomingMessagesEndpoint, {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/json",
@@ -161,6 +190,19 @@ function collapseForLog(value: string): string {
 
 function normalizeWhatsAppId(value?: string): string {
 	return value ? value.replace(/@.+$/, "") : "";
+}
+
+function getMessageId(message: IncomingMessageLike): string | undefined {
+	if (typeof message.id === "string") return message.id;
+	return message.id?._serialized;
+}
+
+function compactObject<T extends Record<string, unknown>>(value: T): T {
+	return Object.fromEntries(
+		Object.entries(value).filter(
+			([, entry]) => entry !== undefined && entry !== "",
+		),
+	) as T;
 }
 
 function formatError(error: unknown): string {

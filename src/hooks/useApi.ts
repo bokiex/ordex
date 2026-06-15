@@ -30,6 +30,7 @@ export function useApi<T>(url: string | null): UseApiResult<T> {
 		setError(null);
 
 		fetch(url, {
+			cache: "no-store",
 			headers: { "Content-Type": "application/json" },
 		})
 			.then(async (res) => {
@@ -66,6 +67,7 @@ export async function apiCall<T>(
 	options?: RequestInit,
 ): Promise<T> {
 	const res = await fetch(url, {
+		cache: "no-store",
 		headers: { "Content-Type": "application/json" },
 		...options,
 	});

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createOrderFromMessage } from "@/lib/orders";
+import { createIncomingMessage } from "@/lib/db/incomingMessages";
+import { publishIncomingMessage } from "@/lib/events/incomingMessages";
 import {
 	extractTextMessages,
 	type WhatsAppWebhookPayload,
@@ -33,8 +34,7 @@ export const Route = createFileRoute("/api/webhook/whatsapp")({
 			 * Incoming message handler (POST)
 			 *
 			 * Receives webhook events from WhatsApp Cloud API.
-			 * Extracts text messages, parses them with AI, matches items
-			 * using customer invoice history, and creates draft orders.
+			 * Extracts text messages and stores them for review/order generation.
 			 */
 			POST: async ({ request }) => {
 				const payload: WhatsAppWebhookPayload = await request.json();
@@ -52,44 +52,39 @@ export const Route = createFileRoute("/api/webhook/whatsapp")({
 				const results = [];
 
 				for (const msg of textMessages) {
-					const result = await createOrderFromMessage({
-						message: msg.body,
-						customerNameHint: msg.name,
+					const message = createIncomingMessage({
+						from: msg.from,
+						senderName: msg.name,
+						whatsappMessageId: msg.messageId,
+						timestamp: msg.timestamp,
+						body: msg.body,
 					});
 
-					if (!result.success) {
-						console.error(
-							`[WhatsApp] Failed to ${result.stage} message from ${msg.name} (${msg.from}):`,
-							result.error,
-						);
-						results.push({
-							from: msg.from,
-							name: msg.name,
-							messageId: msg.messageId,
-							error: result.error,
+					if (message) {
+						publishIncomingMessage({
+							id: message.id,
+							from: message.from,
+							senderName: message.senderName,
+							createdAt: message.createdAt,
 						});
-						continue;
 					}
-
-					const order = result.order;
 
 					results.push({
 						from: msg.from,
 						name: msg.name,
 						messageId: msg.messageId,
-						orderId: order.id,
-						itemCount: order.items.length,
-						matched: order.items.filter((i) => i.matched).length,
+						incomingMessageId: message?.id ?? null,
+						duplicate: !message,
 					});
 
 					console.log(
-						`[WhatsApp] Created order #${order.id} from ${msg.name} (${msg.from}): ${order.items.length} items, ${order.items.filter((i) => i.matched).length} matched`,
+						`[WhatsApp] Stored incoming message from ${msg.name} (${msg.from})`,
 					);
 				}
 
 				return Response.json({
 					received: textMessages.length,
-					orders: results,
+					messages: results,
 				});
 			},
 		},

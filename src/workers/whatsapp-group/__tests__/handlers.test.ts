@@ -22,6 +22,7 @@ function createMessage(
 		author: "6591111111@c.us",
 		body: "Mee kia 3 pkt",
 		fromMe: false,
+		id: { _serialized: "wamid.test" },
 		timestamp: 1_713_900_000,
 		getChat: async () => ({
 			isGroup: true,
@@ -81,7 +82,7 @@ describe("handleIncomingGroupMessage", () => {
 			{
 				fetchImpl,
 				logger: createLogger(),
-				ordersEndpoint: "http://localhost:3000/api/orders",
+				incomingMessagesEndpoint: "http://localhost:3000/api/incoming-messages",
 			},
 		);
 
@@ -89,9 +90,9 @@ describe("handleIncomingGroupMessage", () => {
 		expect(fetchImpl).not.toHaveBeenCalled();
 	});
 
-	it("posts group messages to the orders api with the sender hint", async () => {
+	it("posts group messages to the incoming messages api with sender metadata", async () => {
 		const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
-			new Response(JSON.stringify({ id: 42 }), {
+			new Response(JSON.stringify({ message: { id: 42 } }), {
 				headers: {
 					"Content-Type": "application/json",
 				},
@@ -103,13 +104,13 @@ describe("handleIncomingGroupMessage", () => {
 		const result = await handleIncomingGroupMessage(createMessage(), {
 			fetchImpl,
 			logger,
-			ordersEndpoint: "http://localhost:3000/api/orders",
+			incomingMessagesEndpoint: "http://localhost:3000/api/incoming-messages",
 		});
 
-		expect(result).toEqual({ status: "processed", orderId: 42 });
+		expect(result).toEqual({ status: "processed", incomingMessageId: 42 });
 		expect(fetchImpl).toHaveBeenCalledOnce();
 		expect(fetchImpl.mock.calls[0]?.[0]).toBe(
-			"http://localhost:3000/api/orders",
+			"http://localhost:3000/api/incoming-messages",
 		);
 		expect(fetchImpl.mock.calls[0]?.[1]).toMatchObject({
 			headers: {
@@ -119,7 +120,10 @@ describe("handleIncomingGroupMessage", () => {
 		});
 		expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toEqual({
 			customerNameHint: "Alice",
+			from: "6591111111",
 			message: "Mee kia 3 pkt",
+			timestamp: "1713900000",
+			whatsappMessageId: "wamid.test",
 		});
 		expect(logger.info).toHaveBeenCalledWith(
 			expect.stringContaining("Orders Group"),
@@ -136,7 +140,7 @@ describe("handleIncomingGroupMessage", () => {
 			{
 				fetchImpl: vi.fn<typeof fetch>(),
 				logger,
-				ordersEndpoint: "http://localhost:3000/api/orders",
+				incomingMessagesEndpoint: "http://localhost:3000/api/incoming-messages",
 			},
 		);
 
