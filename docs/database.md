@@ -38,7 +38,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 | `uom_count` | INTEGER | default 1 | |
 | `item_group` | TEXT | — | Beancurd, Seafood, Sauce, Other |
 | `is_active` | INTEGER | default 1 | Boolean |
-| `stock_balance` | REAL | — | Current stock qty |
+| `price` | REAL | — | Latest known catalogue price from invoice history |
 
 ### `debtors` — Customer Directory (~90 records from Excel)
 
@@ -96,6 +96,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 | `id` | INTEGER | PK AUTO | |
 | `from` | TEXT | NOT NULL | Sender phone/id |
 | `sender_name` | TEXT | NOT NULL | WhatsApp contact/group-worker display name |
+| `customer_name_hint` | TEXT | nullable | WhatsApp group name used for customer matching |
 | `whatsapp_message_id` | TEXT | NOT NULL, UNIQUE | Deduplicates webhook/worker deliveries |
 | `timestamp` | TEXT | NOT NULL | WhatsApp timestamp string |
 | `body` | TEXT | NOT NULL | Raw message body |
@@ -133,7 +134,7 @@ orders.id    ←── order_items.order_id
 
 Run: `bun run db:seed`
 
-1. Reads `Item Codes 26.2.26.xlsx` → inserts into `items`
+1. Reads `Item Codes 26.2.26.xlsx` → inserts into `items`, using the latest invoice-history price for each matching item code
 2. Reads `debtor listing.xlsx` → inserts into `debtors`
 3. Reads `INV DETAIL LISTING.xlsx` → inserts into `invoice_history` (500-row batches)
 4. Converts Excel serial dates to ISO strings

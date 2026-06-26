@@ -76,7 +76,7 @@ All routes use TanStack Start's `server.handlers` pattern (not `createServerFn`)
 ```json
 {
   "message": "string (required)",
-  "customerNameHint": "string (optional)",
+  "customerNameHint": "string (optional) — WhatsApp group name",
   "senderName": "string (optional)",
   "from": "string (optional)",
   "timestamp": "string (optional)",
@@ -85,6 +85,15 @@ All routes use TanStack Start's `server.handlers` pattern (not `createServerFn`)
 ```
 
 Used by the WhatsApp group worker. This path does not parse with AI; it only stores the message and returns `201` for a new row or `200` for a duplicate.
+
+**Delete incoming messages request:**
+```json
+{
+  "messageIds": [1, 2, 3]
+}
+```
+
+`DELETE /api/incoming-messages` removes selected messages that are still in the `new` state.
 
 **Generate order request body:**
 ```json
@@ -276,4 +285,4 @@ The browser listens with `EventSource` and refetches `/api/incoming-messages?sta
 ### `GET /api/items`
 
 **File:** `src/routes/api/items.ts`
-**Purpose:** List or search items (`?search=` for fuzzy match)
+**Purpose:** List or search items (`?search=` for fuzzy match), including their stored `price`

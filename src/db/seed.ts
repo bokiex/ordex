@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import * as XLSX from "xlsx";
+import XLSX from "xlsx";
 import { db } from "./index";
 import { debtors, invoiceHistory, items } from "./schema";
 
@@ -15,6 +15,34 @@ function excelDateToISO(serial: number): string {
 async function seed() {
 	console.log("Seeding database from Excel files...\n");
 
+	const invWb = XLSX.readFile(join(EXCEL_DIR, "INV DETAIL LISTING.xlsx"));
+	const invRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+		invWb.Sheets.Sheet,
+	);
+	const validInvRows = invRows.filter(
+		(row) => row["Doc No"] && row["Item Code"],
+	);
+	const latestPriceByItemCode = new Map<
+		string,
+		{ dateSortValue: number; price: number }
+	>();
+
+	for (const row of validInvRows) {
+		const itemCode = String(row["Item Code"]).toLowerCase();
+		const rawDocDate = row["Doc Date"];
+		const dateSortValue =
+			typeof rawDocDate === "number"
+				? rawDocDate
+				: Date.parse(String(rawDocDate));
+		const existing = latestPriceByItemCode.get(itemCode);
+		if (!existing || dateSortValue >= existing.dateSortValue) {
+			latestPriceByItemCode.set(itemCode, {
+				dateSortValue,
+				price: Number(row["Unit Price"]),
+			});
+		}
+	}
+
 	// ─── 1. Items from "Item Codes 26.2.26.xlsx" ───────────────────────────
 	const itemsWb = XLSX.readFile(join(EXCEL_DIR, "Item Codes 26.2.26.xlsx"));
 	const itemRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
@@ -28,8 +56,9 @@ async function seed() {
 		uomCount: Number(row["UOM Count"]) || 1,
 		itemGroup: row["Item Group"] ? String(row["Item Group"]) : null,
 		isActive: row["Is Active"] === "Checked",
-		stockBalance:
-			row["Total Bal. Qty"] != null ? Number(row["Total Bal. Qty"]) : null,
+		price:
+			latestPriceByItemCode.get(String(row["Item Code"]).toLowerCase())
+				?.price ?? null,
 	}));
 
 	const _itemResult = db
@@ -64,16 +93,6 @@ async function seed() {
 	console.log(`Debtors: inserted ${debtorValues.length} rows`);
 
 	// ─── 3. Invoice history from "INV DETAIL LISTING.xlsx" ─────────────────
-	const invWb = XLSX.readFile(join(EXCEL_DIR, "INV DETAIL LISTING.xlsx"));
-	const invRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
-		invWb.Sheets.Sheet,
-	);
-
-	// Filter out summary/empty rows (last row has no Doc No)
-	const validInvRows = invRows.filter(
-		(row) => row["Doc No"] && row["Item Code"],
-	);
-
 	const invValues = validInvRows.map((row) => ({
 		docNo: String(row["Doc No"]),
 		docDate:

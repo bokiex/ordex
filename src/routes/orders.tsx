@@ -39,6 +39,7 @@ interface IncomingMessageListItem {
 	id: number;
 	from: string;
 	senderName: string;
+	customerNameHint: string | null;
 	whatsappMessageId: string;
 	timestamp: string;
 	body: string;
@@ -48,8 +49,7 @@ interface IncomingMessageListItem {
 }
 
 interface IncomingMessageGroup {
-	from: string;
-	senderName: string;
+	customerName: string;
 	messages: IncomingMessageListItem[];
 }
 
@@ -73,6 +73,7 @@ function OrdersPage() {
 	const [detailOpen, setDetailOpen] = useState(false);
 	const [deleteTarget, setDeleteTarget] = useState<OrderListItem | null>(null);
 	const [deleting, setDeleting] = useState(false);
+	const [orderActionError, setOrderActionError] = useState<string | null>(null);
 	const [loadingDetail, setLoadingDetail] = useState(false);
 	const [seenIds, setSeenIds] = useState<Set<number>>(new Set());
 	const [activeTab, setActiveTab] = useState<string>("incoming");
@@ -80,6 +81,8 @@ function OrdersPage() {
 		new Set(),
 	);
 	const [generatingOrder, setGeneratingOrder] = useState(false);
+	const [deletingMessages, setDeletingMessages] = useState(false);
+	const [deleteMessagesOpen, setDeleteMessagesOpen] = useState(false);
 	const [messageActionError, setMessageActionError] = useState<string | null>(
 		null,
 	);
@@ -100,14 +103,30 @@ function OrdersPage() {
 		const handleIncomingMessage = () => {
 			refetchIncomingMessages();
 		};
+		const handleIncomingMessagesChanged = () => {
+			refetchIncomingMessages();
+		};
+		const handleOrdersChanged = () => {
+			refetchOrders();
+		};
 
 		events.addEventListener("incoming-message", handleIncomingMessage);
+		events.addEventListener(
+			"incoming-messages-changed",
+			handleIncomingMessagesChanged,
+		);
+		events.addEventListener("orders-changed", handleOrdersChanged);
 
 		return () => {
 			events.removeEventListener("incoming-message", handleIncomingMessage);
+			events.removeEventListener(
+				"incoming-messages-changed",
+				handleIncomingMessagesChanged,
+			);
+			events.removeEventListener("orders-changed", handleOrdersChanged);
 			events.close();
 		};
-	}, [refetchIncomingMessages]);
+	}, [refetchIncomingMessages, refetchOrders]);
 
 	// Track seen IDs — mark all initial orders as seen
 	useEffect(() => {
@@ -138,26 +157,37 @@ function OrdersPage() {
 			selectedMessageKeys.has(String(message.id)),
 		);
 	}, [incomingMessages, selectedMessageKeys]);
-	const selectedSenderCount = new Set(
-		selectedMessages.map((message) => message.from),
+	const selectedCustomerCount = new Set(
+		selectedMessages.map(
+			(message) => message.customerNameHint || message.senderName,
+		),
 	).size;
 	const groupedIncomingMessages = useMemo(() => {
 		const groups = new Map<string, IncomingMessageGroup>();
 
 		for (const message of incomingMessages ?? []) {
-			const group = groups.get(message.from);
+			const customerName = message.customerNameHint || message.senderName;
+			const group = groups.get(customerName);
 			if (group) {
 				group.messages.push(message);
 			} else {
-				groups.set(message.from, {
-					from: message.from,
-					senderName: message.senderName,
+				groups.set(customerName, {
+					customerName,
 					messages: [message],
 				});
 			}
 		}
 
 		return Array.from(groups.values());
+	}, [incomingMessages]);
+
+	useEffect(() => {
+		const availableIds = new Set(
+			(incomingMessages ?? []).map((message) => String(message.id)),
+		);
+		setSelectedMessageKeys(
+			(previous) => new Set([...previous].filter((id) => availableIds.has(id))),
+		);
 	}, [incomingMessages]);
 
 	const openDetail = async (orderId: number) => {
@@ -176,10 +206,16 @@ function OrdersPage() {
 	const handleDelete = async () => {
 		if (!deleteTarget) return;
 		setDeleting(true);
+		setOrderActionError(null);
 		try {
 			await apiCall(`/api/orders/${deleteTarget.id}`, { method: "DELETE" });
 			setDeleteTarget(null);
 			refetchOrders();
+			refetchIncomingMessages();
+		} catch (error) {
+			setOrderActionError(
+				error instanceof Error ? error.message : "Failed to delete order",
+			);
 		} finally {
 			setDeleting(false);
 		}
@@ -209,6 +245,31 @@ function OrdersPage() {
 			);
 		} finally {
 			setGeneratingOrder(false);
+		}
+	};
+
+	const handleDeleteMessages = async () => {
+		const messageIds = Array.from(selectedMessageKeys).map((key) =>
+			Number(key),
+		);
+		if (messageIds.length === 0) return;
+
+		setDeletingMessages(true);
+		setMessageActionError(null);
+		try {
+			await apiCall("/api/incoming-messages", {
+				method: "DELETE",
+				body: JSON.stringify({ messageIds }),
+			});
+			setSelectedMessageKeys(new Set());
+			setDeleteMessagesOpen(false);
+			refetchIncomingMessages();
+		} catch (error) {
+			setMessageActionError(
+				error instanceof Error ? error.message : "Failed to delete messages",
+			);
+		} finally {
+			setDeletingMessages(false);
 		}
 	};
 
@@ -358,25 +419,41 @@ function OrdersPage() {
 					<span>
 						{selectedMessageKeys.size} of {incomingMessageCount} selected
 					</span>
-					{selectedSenderCount > 1 && (
+					{selectedCustomerCount > 1 && (
 						<span className="text-danger">
-							Choose messages from one sender only.
+							Choose messages from one WhatsApp group only.
 						</span>
 					)}
 				</div>
-				<Button
-					color="primary"
-					startContent={<Sparkles size={16} />}
-					isLoading={generatingOrder}
-					isDisabled={
-						selectedMessageKeys.size === 0 ||
-						selectedSenderCount > 1 ||
-						generatingOrder
-					}
-					onPress={handleGenerateOrder}
-				>
-					Generate order
-				</Button>
+				<div className="flex gap-2">
+					<Button
+						color="danger"
+						variant="flat"
+						startContent={<Trash2 size={16} />}
+						isDisabled={
+							selectedMessageKeys.size === 0 ||
+							generatingOrder ||
+							deletingMessages
+						}
+						onPress={() => setDeleteMessagesOpen(true)}
+					>
+						Delete
+					</Button>
+					<Button
+						color="primary"
+						startContent={<Sparkles size={16} />}
+						isLoading={generatingOrder}
+						isDisabled={
+							selectedMessageKeys.size === 0 ||
+							selectedCustomerCount > 1 ||
+							generatingOrder ||
+							deletingMessages
+						}
+						onPress={handleGenerateOrder}
+					>
+						Generate order
+					</Button>
+				</div>
 			</div>
 
 			{(incomingMessagesError || messageActionError) && (
@@ -397,15 +474,14 @@ function OrdersPage() {
 
 						return (
 							<section
-								key={group.from}
+								key={group.customerName}
 								className="overflow-hidden rounded-lg border border-gray-800 bg-gray-900/30"
 							>
 								<div className="flex flex-col gap-1 border-gray-800 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
 									<div>
 										<h3 className="font-semibold text-white">
-											{group.senderName}
+											{group.customerName}
 										</h3>
-										<p className="text-gray-500 text-xs">{group.from}</p>
 									</div>
 									<p className="text-gray-400 text-sm">
 										{groupSelectedKeys.size} of {group.messages.length} selected
@@ -413,7 +489,7 @@ function OrdersPage() {
 								</div>
 								<Table
 									removeWrapper
-									aria-label={`Incoming WhatsApp messages from ${group.senderName}`}
+									aria-label={`Incoming WhatsApp messages from ${group.customerName}`}
 									isStriped
 									selectionMode="multiple"
 									selectedKeys={groupSelectedKeys}
@@ -426,6 +502,7 @@ function OrdersPage() {
 								>
 									<TableHeader>
 										<TableColumn>Received</TableColumn>
+										<TableColumn>Sender</TableColumn>
 										<TableColumn>Message</TableColumn>
 									</TableHeader>
 									<TableBody
@@ -436,6 +513,9 @@ function OrdersPage() {
 											<TableRow key={String(message.id)}>
 												<TableCell className="text-gray-400 text-sm">
 													{formatMessageTimestamp(message)}
+												</TableCell>
+												<TableCell className="text-gray-400 text-sm">
+													{message.senderName}
 												</TableCell>
 												<TableCell className="max-w-[42rem]">
 													<p className="line-clamp-3 whitespace-pre-wrap text-sm">
@@ -457,6 +537,9 @@ function OrdersPage() {
 	return (
 		<div className="space-y-6">
 			<PageHeader title="Orders" />
+			{orderActionError && (
+				<p className="text-sm text-danger">{orderActionError}</p>
+			)}
 
 			<Tabs
 				selectedKey={activeTab}
@@ -536,6 +619,14 @@ function OrdersPage() {
 				onConfirm={handleDelete}
 				loading={deleting}
 				message={`Delete order #${deleteTarget?.id}? This cannot be undone.`}
+			/>
+			<ConfirmDeleteModal
+				isOpen={deleteMessagesOpen}
+				onClose={() => setDeleteMessagesOpen(false)}
+				onConfirm={handleDeleteMessages}
+				loading={deletingMessages}
+				title="Delete Incoming Messages"
+				message={`Delete ${selectedMessageKeys.size} selected incoming message${selectedMessageKeys.size === 1 ? "" : "s"}? This cannot be undone.`}
 			/>
 		</div>
 	);

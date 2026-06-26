@@ -78,7 +78,7 @@ Line-item fields:
 | Item Group | string | Beancurd, Seafood, Sauce, Other, etc. |
 | Stock Control | Checked/Unchecked | |
 | Is Active | Checked/Unchecked | |
-| Total Bal. Qty | number | Current stock balance |
+| Total Bal. Qty | number | Ignored; the app stores item pricing instead |
 
 ### 4. `debtor listing.xlsx` - Customer Directory
 

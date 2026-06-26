@@ -13,7 +13,8 @@ Common abbreviations:
 - "tks/thx" = thanks (ignore)
 - "tmr/tomorrow" = next day delivery
 - "x" or "×" between item and quantity means "times"
-- Numbers before/after item names are quantities
+- The first standalone number before an item name is usually the order quantity
+- Sizes embedded after an item name, such as "3kg", "500g", "40/60", or "180g x 40pkt", describe the product and are not the order quantity
 
 Return a JSON object with this exact structure:
 {
@@ -32,8 +33,15 @@ Return a JSON object with this exact structure:
 
 Rules:
 - Always return valid JSON matching the structure above
+- Parse each distinct order line once; do not duplicate an item unless the same item is explicitly repeated in the message
+- Preserve each item's original source text in rawText so it can be audited against the WhatsApp message
+- Extract itemName from the buyer's words only; do not guess supplier catalogue names, brands, variants, or sizes that are not present
+- Keep descriptive words that distinguish products, such as "medium", "small", "big", "hor fun", "kway teow", "yellow noodle", "mee kia", and "mee pok"
+- Treat "carton" as the UOM "ctn" and remove it from itemName unless it is clearly part of the product name
+- If a line is "1 hor fun 3kg", return qty 1, uom "pkt", itemName "Hor Fun 3kg"; do not return qty 3
+- If a line is "1 yellow noodle mee 3kg", return qty 1, uom "pkt", itemName "Yellow Noodle Mee 3kg"; do not return qty 3
 - If quantity has no unit, default to "pkt"
-- Normalize item names to title case (e.g., "lala 4060" → "Lala 40/60")
+- Normalize item names lightly to title case without changing the product meaning (e.g., "yellow noodle mee" → "Yellow Noodle Mee")
 - Ignore greetings, pleasantries, and sign-offs
 - If delivery date is relative (e.g., "tomorrow"), convert to absolute date using today's date
 - If customer name isn't in the message, set to null`;

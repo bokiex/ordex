@@ -51,6 +51,7 @@ export function formatWhatsAppTimestamp(timestamp: number): string {
 
 export function buildOrderRequest(
 	message: string,
+	customerNameHint: string,
 	senderName: string,
 	from?: string,
 	timestamp?: number,
@@ -59,15 +60,15 @@ export function buildOrderRequest(
 	customerNameHint?: string;
 	from?: string;
 	message: string;
+	senderName?: string;
 	timestamp?: string;
 	whatsappMessageId?: string;
 } {
-	const customerNameHint = senderName.trim();
-
 	return compactObject({
-		customerNameHint,
+		customerNameHint: customerNameHint.trim(),
 		from: normalizeWhatsAppId(from),
 		message,
+		senderName: senderName.trim(),
 		timestamp: timestamp ? String(timestamp) : undefined,
 		whatsappMessageId,
 	});
@@ -112,6 +113,7 @@ export async function handleIncomingGroupMessage(
 	const response = await postIncomingMessageRequest(
 		buildOrderRequest(
 			trimmedMessage,
+			groupName,
 			senderName,
 			message.author,
 			message.timestamp,
@@ -163,6 +165,7 @@ async function postIncomingMessageRequest(
 		customerNameHint?: string;
 		from?: string;
 		message: string;
+		senderName?: string;
 		timestamp?: string;
 		whatsappMessageId?: string;
 	},

@@ -25,7 +25,7 @@ const emptyForm = {
 	uomCount: 1,
 	itemGroup: "",
 	isActive: true,
-	stockBalance: 0,
+	price: null as number | null,
 };
 
 export function ItemModal({ isOpen, onClose, onSave, item }: ItemModalProps) {
@@ -43,7 +43,7 @@ export function ItemModal({ isOpen, onClose, onSave, item }: ItemModalProps) {
 				uomCount: item.uomCount ?? 1,
 				itemGroup: item.itemGroup ?? "",
 				isActive: item.isActive ?? true,
-				stockBalance: item.stockBalance ?? 0,
+				price: item.price,
 			});
 		} else {
 			setForm(emptyForm);
@@ -54,6 +54,13 @@ export function ItemModal({ isOpen, onClose, onSave, item }: ItemModalProps) {
 	const handleSave = async () => {
 		if (!form.code || !form.description || !form.baseUom) {
 			setError("Code, Description, and Base UOM are required");
+			return;
+		}
+		if (
+			form.price !== null &&
+			(!Number.isFinite(form.price) || form.price < 0)
+		) {
+			setError("Price must be zero or greater");
 			return;
 		}
 		setSaving(true);
@@ -104,6 +111,8 @@ export function ItemModal({ isOpen, onClose, onSave, item }: ItemModalProps) {
 						<Input
 							label="UOM Count"
 							type="number"
+							min={0}
+							step={0.01}
 							value={String(form.uomCount)}
 							onValueChange={(v) =>
 								setForm((p) => ({ ...p, uomCount: Number(v) || 1 }))
@@ -115,12 +124,16 @@ export function ItemModal({ isOpen, onClose, onSave, item }: ItemModalProps) {
 							onValueChange={set("itemGroup")}
 						/>
 						<Input
-							label="Stock Balance"
+							label="Price"
 							type="number"
-							value={String(form.stockBalance)}
+							value={form.price == null ? "" : String(form.price)}
 							onValueChange={(v) =>
-								setForm((p) => ({ ...p, stockBalance: Number(v) || 0 }))
+								setForm((p) => ({
+									...p,
+									price: v === "" ? null : Number(v),
+								}))
 							}
+							startContent={<span className="text-gray-400">$</span>}
 						/>
 						<div className="flex items-center gap-2">
 							<Switch

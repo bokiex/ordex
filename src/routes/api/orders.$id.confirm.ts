@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { confirmOrder, getOrderWithItems } from "@/lib/db/orders";
+import { publishOrdersChanged } from "@/lib/events/incomingMessages";
 
 export const Route = createFileRoute("/api/orders/$id/confirm")({
 	server: {
@@ -50,6 +51,7 @@ export const Route = createFileRoute("/api/orders/$id/confirm")({
 					}
 
 					confirmOrder(id);
+					publishOrdersChanged({ action: "confirmed", orderId: id });
 
 					const updated = getOrderWithItems(id);
 					return Response.json(updated);

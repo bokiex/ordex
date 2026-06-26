@@ -10,7 +10,7 @@
 |--------|------|-------|------|
 | WhatsApp | `src/lib/whatsapp/__tests__/types.test.ts` | 7 | Unit (pure logic) |
 | Parser | `src/lib/parser/__tests__/parser.test.ts` | 10 | Unit (pure logic) |
-| Matcher | `src/lib/matcher/__tests__/matcher.test.ts` | 13 | Unit (pure logic) |
+| Matcher | `src/lib/matcher/__tests__/matcher.test.ts` | 17 | Unit (pure logic) |
 | WhatsApp Group Worker | `src/workers/whatsapp-group/__tests__/config.test.ts` | 3 | Unit (env parsing) |
 | WhatsApp Group Worker | `src/workers/whatsapp-group/__tests__/client.test.ts` | 2 | Unit (client options) |
 | WhatsApp Group Worker | `src/workers/whatsapp-group/__tests__/handlers.test.ts` | 6 | Unit (message filtering + mocked fetch) |

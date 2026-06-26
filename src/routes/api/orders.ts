@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { listOrders } from "@/lib/db/orders";
 import type { OrderStatus } from "@/lib/db/types";
+import { publishOrdersChanged } from "@/lib/events/incomingMessages";
 import { createOrderFromMessage } from "@/lib/orders";
 
 export const Route = createFileRoute("/api/orders")({
@@ -84,6 +85,10 @@ export const Route = createFileRoute("/api/orders")({
 					);
 				}
 
+				publishOrdersChanged({
+					action: "created",
+					orderId: result.order.id,
+				});
 				return Response.json(result.order, { status: 201 });
 			},
 		},

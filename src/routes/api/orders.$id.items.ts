@@ -26,7 +26,8 @@ export const Route = createFileRoute("/api/orders/$id/items")({
 						description: body.description || null,
 						uom: body.uom || null,
 						qty: body.qty,
-						unitPrice: body.unitPrice || null,
+						unitPrice: body.unitPrice ?? null,
+						lineTotal: body.lineTotal ?? null,
 						matched: body.matched ?? false,
 					});
 

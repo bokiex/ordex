@@ -10,6 +10,9 @@ import viteTsConfigPaths from "vite-tsconfig-paths";
 const config = defineConfig({
 	server: {
 		allowedHosts: [".ngrok-free.app", ".ngrok.io"],
+		watch: {
+			ignored: ["**/.wwebjs_auth/**", "**/.wwebjs_cache/**"],
+		},
 	},
 	resolve: {
 		alias: {

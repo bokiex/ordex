@@ -1,5 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { deleteOrder, getOrderWithItems, updateOrder } from "@/lib/db/orders";
+import {
+	publishIncomingMessagesChanged,
+	publishOrdersChanged,
+} from "@/lib/events/incomingMessages";
 
 export const Route = createFileRoute("/api/orders/$id")({
 	server: {
@@ -68,15 +72,23 @@ export const Route = createFileRoute("/api/orders/$id")({
 			 */
 			DELETE: async ({ params }) => {
 				try {
-					const deleted = deleteOrder(Number(params.id));
+					const id = Number(params.id);
+					const result = deleteOrder(id);
 
-					if (!deleted) {
+					if (!result.deleted) {
 						return Response.json(
 							{ error: `Order '${params.id}' not found` },
 							{ status: 404 },
 						);
 					}
 
+					if (result.releasedMessageIds.length > 0) {
+						publishIncomingMessagesChanged({
+							action: "restored",
+							ids: result.releasedMessageIds,
+						});
+					}
+					publishOrdersChanged({ action: "deleted", orderId: id });
 					return new Response(null, { status: 204 });
 				} catch (error) {
 					const message =

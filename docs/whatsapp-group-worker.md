@@ -76,14 +76,16 @@ pnpm whatsapp:dev
 
 - Only group messages are processed (`chat.isGroup === true`)
 - Messages sent by the worker account itself are skipped
-- Sender names come from the WhatsApp contact (`pushname` → `name` → `shortName` → number)
+- Customer matching uses the WhatsApp group name
+- Sender names still come from the WhatsApp contact (`pushname` → `name` → `shortName` → number) for attribution
 - Every group message is logged with timestamp, group name, sender, and flattened message body
 - Incoming messages are stored by `POST`ing to `/api/incoming-messages` with:
 
 ```json
 {
   "message": "raw group message text",
-  "customerNameHint": "sender display name",
+  "customerNameHint": "WhatsApp group name",
+  "senderName": "sender display name",
   "from": "6591111111",
   "timestamp": "1713900000",
   "whatsappMessageId": "wamid.xxx"

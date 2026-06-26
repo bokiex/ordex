@@ -1,6 +1,13 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/index";
-import { debtors, items, orderItems, orders } from "@/db/schema";
+import {
+	debtors,
+	incomingMessages,
+	items,
+	orderItems,
+	orders,
+} from "@/db/schema";
+import { normalizeUom } from "@/lib/uom";
 import type {
 	NewOrder,
 	NewOrderItem,
@@ -83,36 +90,44 @@ export function getOrderWithItems(id: number): OrderWithItems | undefined {
 			itemObj_uomCount: items.uomCount,
 			itemObj_itemGroup: items.itemGroup,
 			itemObj_isActive: items.isActive,
-			itemObj_stockBalance: items.stockBalance,
+			itemObj_price: items.price,
 		})
 		.from(orderItems)
 		.leftJoin(items, eq(orderItems.itemCode, items.code))
 		.where(eq(orderItems.orderId, id))
 		.all();
 
-	const enrichedItems = lineRows.map((row) => ({
-		id: row.id,
-		orderId: row.orderId,
-		itemCode: row.itemCode,
-		rawItemName: row.rawItemName,
-		description: row.description,
-		uom: row.uom,
-		qty: row.qty,
-		unitPrice: row.unitPrice,
-		lineTotal: row.lineTotal,
-		matched: row.matched,
-		item: row.itemObj_code
-			? {
-					code: row.itemObj_code,
-					description: row.itemObj_description,
-					baseUom: row.itemObj_baseUom,
-					uomCount: row.itemObj_uomCount,
-					itemGroup: row.itemObj_itemGroup,
-					isActive: row.itemObj_isActive,
-					stockBalance: row.itemObj_stockBalance,
-				}
-			: null,
-	}));
+	const enrichedItems = lineRows.map((row) => {
+		const uom = row.itemObj_baseUom
+			? normalizeUom(row.itemObj_baseUom)
+			: row.uom;
+		const unitPrice = row.itemObj_price ?? row.unitPrice ?? null;
+
+		return {
+			id: row.id,
+			orderId: row.orderId,
+			itemCode: row.itemCode,
+			rawItemName: row.rawItemName,
+			description: row.description,
+			uom,
+			qty: row.qty,
+			unitPrice,
+			lineTotal:
+				row.lineTotal ?? (unitPrice == null ? null : row.qty * unitPrice),
+			matched: row.matched,
+			item: row.itemObj_code
+				? {
+						code: row.itemObj_code,
+						description: row.itemObj_description,
+						baseUom: row.itemObj_baseUom,
+						uomCount: row.itemObj_uomCount,
+						itemGroup: row.itemObj_itemGroup,
+						isActive: row.itemObj_isActive,
+						price: row.itemObj_price,
+					}
+				: null,
+		};
+	});
 
 	return {
 		...order,
@@ -148,21 +163,68 @@ export function updateOrder(
 	return db.update(orders).set(data).where(eq(orders.id, id)).returning().get();
 }
 
-/** Delete an order and all its line items. Returns true if deleted. */
-export function deleteOrder(id: number): boolean {
-	db.delete(orderItems).where(eq(orderItems.orderId, id)).run();
-	const result = db.delete(orders).where(eq(orders.id, id)).run();
-	return result.changes > 0;
+/** Delete an order and restore its source messages to the incoming queue. */
+export function deleteOrder(id: number): {
+	deleted: boolean;
+	releasedMessageIds: number[];
+} {
+	return db.transaction((tx) => {
+		const sourceMessages = tx
+			.select({ id: incomingMessages.id })
+			.from(incomingMessages)
+			.where(eq(incomingMessages.sourceOrderId, id))
+			.all();
+
+		if (sourceMessages.length > 0) {
+			tx.update(incomingMessages)
+				.set({ sourceOrderId: null, status: "new" })
+				.where(eq(incomingMessages.sourceOrderId, id))
+				.run();
+		}
+
+		tx.delete(orderItems).where(eq(orderItems.orderId, id)).run();
+		const result = tx.delete(orders).where(eq(orders.id, id)).run();
+
+		return {
+			deleted: result.changes > 0,
+			releasedMessageIds: sourceMessages.map((message) => message.id),
+		};
+	});
 }
 
 /** Set order status to 'confirmed'. */
 export function confirmOrder(id: number): Order | undefined {
-	return db
-		.update(orders)
-		.set({ status: "confirmed" })
-		.where(eq(orders.id, id))
-		.returning()
-		.get();
+	return db.transaction((tx) => {
+		const matchedLines = tx
+			.select({
+				id: orderItems.id,
+				qty: orderItems.qty,
+				baseUom: items.baseUom,
+				price: items.price,
+			})
+			.from(orderItems)
+			.innerJoin(items, eq(orderItems.itemCode, items.code))
+			.where(eq(orderItems.orderId, id))
+			.all();
+
+		for (const line of matchedLines) {
+			tx.update(orderItems)
+				.set({
+					uom: normalizeUom(line.baseUom),
+					unitPrice: line.price,
+					lineTotal: line.price == null ? null : line.qty * line.price,
+				})
+				.where(eq(orderItems.id, line.id))
+				.run();
+		}
+
+		return tx
+			.update(orders)
+			.set({ status: "confirmed" })
+			.where(eq(orders.id, id))
+			.returning()
+			.get();
+	});
 }
 
 /** Set order status to 'exported'. */

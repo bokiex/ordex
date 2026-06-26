@@ -112,7 +112,7 @@ function ItemsPage() {
 					<TableColumn>Description</TableColumn>
 					<TableColumn>UOM</TableColumn>
 					<TableColumn>Group</TableColumn>
-					<TableColumn>Stock</TableColumn>
+					<TableColumn>Price</TableColumn>
 					<TableColumn>Status</TableColumn>
 					<TableColumn>Actions</TableColumn>
 				</TableHeader>
@@ -132,7 +132,7 @@ function ItemsPage() {
 								{item.itemGroup ?? "—"}
 							</TableCell>
 							<TableCell className="text-right">
-								{item.stockBalance != null ? item.stockBalance.toFixed(0) : "—"}
+								{item.price != null ? `$${item.price.toFixed(2)}` : "—"}
 							</TableCell>
 							<TableCell>
 								<Chip

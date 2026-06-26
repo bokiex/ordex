@@ -28,6 +28,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { apiCall } from "@/hooks/useApi";
 import type { Debtor, Item, OrderItem, OrderWithItems } from "@/lib/db/types";
+import { searchCatalogueItems } from "@/lib/itemSearch";
 
 interface OrderDetailModalProps {
 	isOpen: boolean;
@@ -38,15 +39,7 @@ interface OrderDetailModalProps {
 
 /** Filter items client-side by code or description (case-insensitive). */
 function filterItems(allItems: Item[], query: string): Item[] {
-	if (!query) return allItems.slice(0, 20);
-	const q = query.toLowerCase();
-	return allItems
-		.filter(
-			(i) =>
-				i.code.toLowerCase().includes(q) ||
-				i.description.toLowerCase().includes(q),
-		)
-		.slice(0, 20);
+	return searchCatalogueItems(allItems, query, 20);
 }
 
 /** Filter debtors client-side by name, alias, or code (case-insensitive). */
@@ -105,9 +98,10 @@ export function OrderDetailModal({
 	const [savingCustomer, setSavingCustomer] = useState(false);
 
 	const noCustomerMatch = useMemo(() => {
+		if (localOrder?.debtorCode) return false;
 		if (!customerSearch || customerSearch.length < 2) return false;
 		return customerResults.length === 0;
-	}, [customerSearch, customerResults]);
+	}, [customerSearch, customerResults, localOrder?.debtorCode]);
 
 	const handleCreateCustomer = async () => {
 		if (!newCustomer.code || !newCustomer.companyName) return;
@@ -125,7 +119,7 @@ export function OrderDetailModal({
 			});
 			// Add to local list and select
 			setAllDebtors((prev) => [debtor, ...prev]);
-			setCustomerSearch(`${debtor.code} — ${debtor.companyName}`);
+			setCustomerSearch(debtor.companyName);
 			setShowNewCustomer(false);
 			setNewCustomer({
 				code: "",
@@ -152,11 +146,7 @@ export function OrderDetailModal({
 			setLocalOrder(order);
 			setError(null);
 			// Set initial customer display text
-			setCustomerSearch(
-				order.debtorName
-					? `${order.debtorCode ?? ""} — ${order.debtorName}`
-					: "",
-			);
+			setCustomerSearch(order.debtorName ?? "");
 		}
 	}, [order]);
 
@@ -246,6 +236,8 @@ export function OrderDetailModal({
 					description: item.description,
 					uom: item.baseUom,
 					qty: 1,
+					unitPrice: item.price,
+					lineTotal: item.price,
 					matched: true,
 				}),
 			});
@@ -364,11 +356,9 @@ export function OrderDetailModal({
 								selectedKey={localOrder.debtorCode}
 								onSelectionChange={(key) => {
 									if (key) {
-										const debtor = customerResults.find((d) => d.code === key);
+										const debtor = allDebtors.find((d) => d.code === key);
 										if (debtor) {
-											setCustomerSearch(
-												`${debtor.code} — ${debtor.companyName}`,
-											);
+											setCustomerSearch(debtor.companyName);
 										}
 										updateHeader({
 											debtorCode: key,
@@ -380,10 +370,7 @@ export function OrderDetailModal({
 								isDisabled={!isDraft}
 							>
 								{customerResults.map((d) => (
-									<AutocompleteItem
-										key={d.code}
-										textValue={`${d.code} — ${d.companyName}`}
-									>
+									<AutocompleteItem key={d.code} textValue={d.companyName}>
 										<div className="flex flex-col">
 											<span className="font-medium">{d.companyName}</span>
 											<span className="text-sm text-gray-400">{d.code}</span>
@@ -558,6 +545,11 @@ export function OrderDetailModal({
 														itemCode: item.code,
 														description: item.description,
 														uom: item.baseUom,
+														unitPrice: item.price,
+														lineTotal:
+															item.price == null
+																? null
+																: item.price * orderItem.qty,
 														matched: true,
 													})
 												}
@@ -738,7 +730,7 @@ function ItemSearchCell({
 				size="sm"
 				inputValue={search}
 				onInputChange={setSearch}
-				selectedKey={orderItem.itemCode}
+				selectedKey={search === orderItem.itemCode ? orderItem.itemCode : null}
 				onSelectionChange={(key) => {
 					const item = allItems.find((i) => i.code === key);
 					if (item) {
@@ -749,7 +741,10 @@ function ItemSearchCell({
 				className="w-40"
 			>
 				{results.map((item) => (
-					<AutocompleteItem key={item.code} textValue={item.code}>
+					<AutocompleteItem
+						key={item.code}
+						textValue={`${item.code} ${item.description}`}
+					>
 						<div className="flex flex-col">
 							<span className="text-sm">{item.description}</span>
 							<span className="text-xs text-gray-400">{item.code}</span>
@@ -777,7 +772,10 @@ function ItemSearchCell({
 			color="warning"
 		>
 			{results.map((item) => (
-				<AutocompleteItem key={item.code} textValue={item.code}>
+				<AutocompleteItem
+					key={item.code}
+					textValue={`${item.code} ${item.description}`}
+				>
 					<div className="flex flex-col">
 						<span className="text-sm">{item.description}</span>
 						<span className="text-xs text-gray-400">{item.code}</span>

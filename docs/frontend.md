@@ -19,7 +19,7 @@ __root__  (src/routes/__root.tsx)
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| `OrderDetailModal` | `src/components/orders/OrderDetailModal.tsx` | Full order view/edit modal with customer autocomplete, item matching, qty/price editing |
+| `OrderDetailModal` | `src/components/orders/OrderDetailModal.tsx` | Full order view/edit modal with name-only customer display, item matching, and qty/price editing |
 
 The Orders page has three tabs:
 

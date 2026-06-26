@@ -1,5 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { subscribeToIncomingMessages } from "@/lib/events/incomingMessages";
+import {
+	subscribeToIncomingMessages,
+	subscribeToIncomingMessagesChanged,
+	subscribeToOrdersChanged,
+} from "@/lib/events/incomingMessages";
 
 const encoder = new TextEncoder();
 
@@ -14,6 +18,8 @@ export const Route = createFileRoute("/api/events/incoming-messages")({
 						let active = true;
 						let heartbeat: ReturnType<typeof setInterval> | undefined;
 						let unsubscribe = () => {};
+						let unsubscribeIncomingChanges = () => {};
+						let unsubscribeOrders = () => {};
 
 						const stop = () => {
 							if (!active) return;
@@ -21,6 +27,8 @@ export const Route = createFileRoute("/api/events/incoming-messages")({
 							active = false;
 							if (heartbeat) clearInterval(heartbeat);
 							unsubscribe();
+							unsubscribeIncomingChanges();
+							unsubscribeOrders();
 							request.signal.removeEventListener("abort", stop);
 						};
 
@@ -44,6 +52,14 @@ export const Route = createFileRoute("/api/events/incoming-messages")({
 
 						unsubscribe = subscribeToIncomingMessages((message) => {
 							send("incoming-message", message);
+						});
+						unsubscribeIncomingChanges = subscribeToIncomingMessagesChanged(
+							(event) => {
+								send("incoming-messages-changed", event);
+							},
+						);
+						unsubscribeOrders = subscribeToOrdersChanged((event) => {
+							send("orders-changed", event);
 						});
 
 						heartbeat = setInterval(() => {

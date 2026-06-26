@@ -52,6 +52,34 @@ pnpm dev
 
 Open `http://localhost:3000`.
 
+### Run Locally In Production
+
+Build the app, then start the production web server and WhatsApp group worker
+together:
+
+```bash
+pnpm build
+pnpm start
+```
+
+`pnpm start` loads `.env` followed by `.env.local`, starts the generated Nitro
+server, and starts the WhatsApp worker. If either process stops, the other is
+shut down as well.
+
+To run the processes independently:
+
+```bash
+pnpm start:web
+pnpm start:whatsapp
+```
+
+The production build must already exist at `.output/server/index.mjs`. Database
+migrations remain an explicit setup step:
+
+```bash
+pnpm db:migrate
+```
+
 The main workflow is in **Orders**:
 
 - **Incoming Messages** shows raw WhatsApp messages grouped by sender/customer.

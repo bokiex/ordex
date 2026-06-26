@@ -57,12 +57,13 @@ describe("extractSenderName", () => {
 });
 
 describe("buildOrderRequest", () => {
-	it("includes customerNameHint only when the sender name is present", () => {
-		expect(buildOrderRequest("hello", " Alice ")).toEqual({
-			customerNameHint: "Alice",
+	it("uses the group name as customer hint and preserves the sender name", () => {
+		expect(buildOrderRequest("hello", " Orders Group ", " Alice ")).toEqual({
+			customerNameHint: "Orders Group",
 			message: "hello",
+			senderName: "Alice",
 		});
-		expect(buildOrderRequest("hello", "   ")).toEqual({
+		expect(buildOrderRequest("hello", "   ", "   ")).toEqual({
 			message: "hello",
 		});
 	});
@@ -119,9 +120,10 @@ describe("handleIncomingGroupMessage", () => {
 			method: "POST",
 		});
 		expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toEqual({
-			customerNameHint: "Alice",
+			customerNameHint: "Orders Group",
 			from: "6591111111",
 			message: "Mee kia 3 pkt",
+			senderName: "Alice",
 			timestamp: "1713900000",
 			whatsappMessageId: "wamid.test",
 		});

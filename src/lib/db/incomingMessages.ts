@@ -1,4 +1,4 @@
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/index";
 import { incomingMessages } from "@/db/schema";
 import type {
@@ -59,4 +59,20 @@ export function markIncomingMessagesUsed(
 		.set({ status: "used", sourceOrderId })
 		.where(inArray(incomingMessages.id, ids))
 		.run();
+}
+
+export function deleteIncomingMessages(ids: number[]): number {
+	if (ids.length === 0) return 0;
+
+	const result = db
+		.delete(incomingMessages)
+		.where(
+			and(
+				inArray(incomingMessages.id, ids),
+				eq(incomingMessages.status, "new"),
+			),
+		)
+		.run();
+
+	return result.changes;
 }

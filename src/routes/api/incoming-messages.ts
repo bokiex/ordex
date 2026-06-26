@@ -2,11 +2,16 @@ import { createHash } from "node:crypto";
 import { createFileRoute } from "@tanstack/react-router";
 import {
 	createIncomingMessage,
+	deleteIncomingMessages,
 	getIncomingMessagesByIds,
 	listIncomingMessages,
 	markIncomingMessagesUsed,
 } from "@/lib/db/incomingMessages";
-import { publishIncomingMessage } from "@/lib/events/incomingMessages";
+import {
+	publishIncomingMessage,
+	publishIncomingMessagesChanged,
+	publishOrdersChanged,
+} from "@/lib/events/incomingMessages";
 import { createOrderFromMessage } from "@/lib/orders";
 
 export const Route = createFileRoute("/api/incoming-messages")({
@@ -58,6 +63,11 @@ export const Route = createFileRoute("/api/incoming-messages")({
 									body.customerNameHint.trim()
 								? body.customerNameHint.trim()
 								: "Unknown Sender";
+					const customerNameHint =
+						typeof body.customerNameHint === "string" &&
+						body.customerNameHint.trim()
+							? body.customerNameHint.trim()
+							: senderName;
 					const from =
 						typeof body.from === "string" && body.from.trim()
 							? body.from.trim()
@@ -75,6 +85,7 @@ export const Route = createFileRoute("/api/incoming-messages")({
 					const message = createIncomingMessage({
 						from,
 						senderName,
+						customerNameHint,
 						whatsappMessageId,
 						timestamp,
 						body: trimmedMessage,
@@ -121,10 +132,14 @@ export const Route = createFileRoute("/api/incoming-messages")({
 					);
 				}
 
-				const senders = new Set(messages.map((message) => message.from));
-				if (senders.size > 1) {
+				const customerGroups = new Set(
+					messages.map(
+						(message) => message.customerNameHint || message.senderName,
+					),
+				);
+				if (customerGroups.size > 1) {
 					return Response.json(
-						{ error: "Selected messages must be from the same sender" },
+						{ error: "Selected messages must be from the same WhatsApp group" },
 						{ status: 400 },
 					);
 				}
@@ -134,7 +149,8 @@ export const Route = createFileRoute("/api/incoming-messages")({
 					.join("\n");
 				const result = await createOrderFromMessage({
 					message: combinedMessage,
-					customerNameHint: messages[0]?.senderName,
+					customerNameHint:
+						messages[0]?.customerNameHint || messages[0]?.senderName,
 				});
 
 				if (!result.success) {
@@ -160,8 +176,54 @@ export const Route = createFileRoute("/api/incoming-messages")({
 				}
 
 				markIncomingMessagesUsed(messageIds, result.order.id);
+				publishIncomingMessagesChanged({
+					action: "used",
+					ids: messageIds,
+				});
+				publishOrdersChanged({
+					action: "created",
+					orderId: result.order.id,
+				});
 
 				return Response.json(result.order, { status: 201 });
+			},
+			DELETE: async ({ request }) => {
+				const body = await request.json();
+				if (
+					!Array.isArray(body.messageIds) ||
+					body.messageIds.length === 0 ||
+					body.messageIds.some((id: unknown) => !Number.isInteger(id))
+				) {
+					return Response.json(
+						{ error: "Missing or invalid 'messageIds' field" },
+						{ status: 400 },
+					);
+				}
+
+				const messageIds = [...new Set(body.messageIds as number[])];
+				const messages = getIncomingMessagesByIds(messageIds).filter(
+					(message) => message.status === "new",
+				);
+				if (messages.length !== messageIds.length) {
+					return Response.json(
+						{ error: "One or more selected messages are unavailable" },
+						{ status: 409 },
+					);
+				}
+
+				const deleted = deleteIncomingMessages(messageIds);
+				if (deleted !== messageIds.length) {
+					return Response.json(
+						{ error: "One or more selected messages are unavailable" },
+						{ status: 409 },
+					);
+				}
+
+				publishIncomingMessagesChanged({
+					action: "deleted",
+					ids: messageIds,
+				});
+				return new Response(null, { status: 204 });
 			},
 		},
 	},

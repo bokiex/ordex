@@ -88,7 +88,7 @@ curl -X POST http://localhost:3000/api/orders \
   }'
 ```
 
-**Expected:** All items matched via catalogue search (`source: "catalogue"`), no price populated.
+**Expected:** All items match via catalogue search (`source: "catalogue"`), using stored catalogue prices where available.
 
 ## 2. POST /api/webhook/whatsapp — Store Incoming WhatsApp Message
 
@@ -182,6 +182,6 @@ curl http://localhost:3000/api/orders/1
 
 1. **Manufacturer preference**: Same product name resolves to different item codes per customer
 2. **Price from history**: Unit prices are populated from the customer's most recent invoice
-3. **Fallback**: Unknown customers get generic catalogue matches (no price)
+3. **Fallback**: Unknown customers get generic catalogue matches with stored prices where available
 4. **Customer matching**: Company name/alias fuzzy matches to debtor code
 5. **Agent populated**: Order agent field comes from debtor record

@@ -11,13 +11,15 @@ export function useApi<T>(url: string | null): UseApiResult<T> {
 	const [data, setData] = useState<T | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
-	const [_trigger, setTrigger] = useState(0);
+	const [trigger, setTrigger] = useState(0);
 
 	const refetch = useCallback(() => {
 		setTrigger((prev) => prev + 1);
 	}, []);
 
 	useEffect(() => {
+		void trigger;
+
 		if (url === null) {
 			setData(null);
 			setError(null);
@@ -57,7 +59,7 @@ export function useApi<T>(url: string | null): UseApiResult<T> {
 		return () => {
 			cancelled = true;
 		};
-	}, [url]);
+	}, [url, trigger]);
 
 	return { data, error, loading, refetch };
 }

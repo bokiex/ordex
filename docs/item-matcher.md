@@ -5,14 +5,14 @@
 
 ## Overview
 
-When multiple manufacturers produce the same product (e.g., 5 different bee hoon manufacturers), the matcher uses a customer's invoice history to pick the item code they historically buy. Falls back to generic catalogue search for unknown customers.
+When multiple manufacturers produce the same product (e.g., 5 different bee hoon manufacturers), the matcher uses a customer's invoice history to pick the active item code they historically buy. It otherwise ranks every active catalogue item and always returns the best candidate when the catalogue is non-empty.
 
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `src/lib/matcher/index.ts` | `matchItem()`, `filterItems()`, `tokenize()` |
-| `src/lib/matcher/__tests__/matcher.test.ts` | 13 unit tests |
+| `src/lib/matcher/__tests__/matcher.test.ts` | Matcher unit tests |
 | `src/lib/db/invoices.ts` | `getDebtorItemPreferences()` — DB query |
 
 ## How It Works
@@ -21,9 +21,10 @@ When multiple manufacturers produce the same product (e.g., 5 different bee hoon
 
 ```
 1. Tokenize item name ("kway teow medium" → ["kway", "teow", "medium"])
-2. Score each preference by token overlap with description/code
-3. Pick the highest-scoring preference (ties broken by purchase frequency)
-4. If no preference matches → fall back to generic catalogue LIKE search
+2. Score customer preferences using exact tokens, size/grade numbers, compact names, and minor spelling differences
+3. Use the best historical preference only if its code still exists in the active catalogue
+4. Otherwise rank every active catalogue item with the same scoring rules
+5. Return the highest-ranked catalogue candidate, including for a zero-confidence query
 ```
 
 ### Key Function: `matchItem(itemName, preferences)`
@@ -39,7 +40,7 @@ matchItem(
   itemCode: string;       // e.g. "HOCKHIN BEEHOON"
   description: string;    // e.g. "Bee Hoon (3kg) 米粉"
   uom: string;            // e.g. "PKT"
-  unitPrice: number|null; // from most recent invoice
+  unitPrice: number|null; // customer history price, or stored catalogue price
   matched: true;
   source: "history" | "catalogue";  // where the match came from
 }
@@ -75,7 +76,7 @@ The `items` table has 5 different bee hoon products:
 
 All have the same description: "Bee Hoon (3kg) 米粉"
 
-Without preferences, `searchItems("bee hoon")` returns whichever is first alphabetically. With preferences, customer A gets HOCKHIN and customer B gets ENGBEE based on their purchase history.
+With preferences, customer A gets HOCKHIN and customer B gets ENGBEE based on their purchase history. Without preferences, all active catalogue candidates are ranked rather than relying on a whole-phrase SQL `LIKE` match.
 
 ## Integration Points
 
@@ -83,15 +84,19 @@ Without preferences, `searchItems("bee hoon")` returns whichever is first alphab
 1. Customer matched → `debtorCode` resolved
 2. `getDebtorItemPreferences(debtorCode)` loads history
 3. Each parsed item runs through `matchItem(name, preferences)`
-4. Results include `unitPrice` from history
+4. Results include the customer's latest historical price, falling back to the stored catalogue price
+
+Manually selected or added catalogue items also copy their stored price into the
+order line. Existing lines with no saved unit price display the current catalogue
+price when one is available.
 
 ### POST /api/webhook/whatsapp (webhook)
 Same flow as above, triggered automatically from incoming WhatsApp messages.
 
-## Tests (13)
+## Tests
 
 | # | Test | Validates |
 |---|------|-----------|
 | 1-4 | tokenize() | Splitting, noise filtering, slash-numbers, empty input |
 | 5-10 | findBestPreference() | Lala → 40/60, specific size, sotong, noodle, no match, empty prefs |
-| 11-13 | matchItem() | History source + price, specific match, fallback behavior |
+| Matcher tests | `matchItem()` | History source + price, specific sizes, reordered words, misspellings, inactive historical codes, and fallback behavior |

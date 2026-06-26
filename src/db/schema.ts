@@ -10,7 +10,7 @@ export const items = sqliteTable("items", {
 	uomCount: integer("uom_count").default(1),
 	itemGroup: text("item_group"), // Beancurd, Seafood, Sauce, Other, etc.
 	isActive: integer("is_active", { mode: "boolean" }).default(true),
-	stockBalance: real("stock_balance"),
+	price: real("price"),
 });
 
 /** Customer directory — sourced from "debtor listing.xlsx" */
@@ -68,6 +68,7 @@ export const incomingMessages = sqliteTable("incoming_messages", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
 	from: text("from").notNull(),
 	senderName: text("sender_name").notNull(),
+	customerNameHint: text("customer_name_hint"),
 	whatsappMessageId: text("whatsapp_message_id").notNull().unique(),
 	timestamp: text("timestamp").notNull(),
 	body: text("body").notNull(),

@@ -1,5 +1,6 @@
 import { searchDebtors } from "@/lib/db/debtors";
 import { getDebtorItemPreferences } from "@/lib/db/invoices";
+import { listItems } from "@/lib/db/items";
 import { createOrder } from "@/lib/db/orders";
 import type { OrderWithItems } from "@/lib/db/types";
 import { matchItem } from "@/lib/matcher/index";
@@ -33,7 +34,7 @@ export async function createOrderFromMessage(
 
 	try {
 		const customerName =
-			parsedOrder.customerName || input.customerNameHint || null;
+			input.customerNameHint || parsedOrder.customerName || null;
 		let debtorCode: string | null = null;
 		let debtorName = customerName || "Unknown";
 		let agent: string | null = null;
@@ -48,17 +49,18 @@ export async function createOrderFromMessage(
 		}
 
 		const preferences = debtorCode ? getDebtorItemPreferences(debtorCode) : [];
+		const catalogueItems = listItems({ isActive: true });
 		const docDate = parsedOrder.deliveryDate || today;
 
 		const lineItems = parsedOrder.items.map((item) => {
-			const match = matchItem(item.itemName, preferences);
+			const match = matchItem(item.itemName, preferences, catalogueItems);
 			const unitPrice = match?.unitPrice ?? null;
 
 			return {
 				itemCode: match?.itemCode ?? null,
 				rawItemName: item.rawText,
 				description: match?.description ?? item.itemName,
-				uom: item.uom || match?.uom || null,
+				uom: match?.uom ?? item.uom ?? null,
 				qty: item.qty,
 				unitPrice,
 				lineTotal: unitPrice != null ? unitPrice * item.qty : null,

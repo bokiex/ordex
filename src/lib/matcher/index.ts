@@ -1,13 +1,21 @@
 /**
- * Item matching with customer preference from invoice history.
+ * Item matching against active catalogue descriptions.
  *
- * When a customer orders "lala", we check their invoice history first
- * to find which specific lala product (manufacturer) they usually buy.
- * Falls back to generic catalogue search if no history exists.
+ * The AI parser extracts the buyer's wording. Matching should then choose the
+ * catalogue row whose description best matches those words. Customer history is
+ * used only as a tie-breaker among equally good description matches because
+ * item codes can contain legacy/vendor wording that contradicts the description.
  */
 
 import type { DebtorItemPreference } from "@/lib/db/invoices";
-import { searchItems } from "@/lib/db/items";
+import { listItems } from "@/lib/db/items";
+import type { Item } from "@/lib/db/types";
+import {
+	getTextMatch,
+	rankCatalogueItemsByDescription,
+	scoreTextMatch,
+	tokenizeSearchText,
+} from "@/lib/itemSearch";
 import { normalizeUom } from "@/lib/uom";
 
 export type MatchResult = {
@@ -19,45 +27,73 @@ export type MatchResult = {
 	source: "history" | "catalogue";
 };
 
+type PreferenceMatch = {
+	preference: DebtorItemPreference;
+	score: number;
+	matchedMeaningfulTokens: number;
+};
+
 /**
- * Match a parsed item name to a product code, preferring customer history.
- *
- * Strategy:
- * 1. Search the customer's invoice history preferences for a fuzzy match
- * 2. If found, use that item code (the customer's preferred manufacturer)
- * 3. If not found, fall back to generic catalogue search
+ * Match a parsed item name to a product code by catalogue description.
  *
  * Returns null if no match found anywhere.
  */
 export function matchItem(
 	itemName: string,
 	preferences: DebtorItemPreference[],
+	catalogueItems: Item[] = listItems({ isActive: true }),
 ): MatchResult | null {
-	// 1. Try matching against customer's historical purchases
-	const historyMatch = findBestPreference(itemName, preferences);
+	if (catalogueItems.length === 0) return null;
+
+	const catalogueMatch = findBestCatalogueItem(itemName, catalogueItems);
+	if (!catalogueMatch) return null;
+	const historyMatch = findHistoryTieBreaker(
+		itemName,
+		preferences,
+		catalogueItems,
+		catalogueMatch.descriptionScore,
+	);
 	if (historyMatch) {
 		return {
-			itemCode: historyMatch.itemCode,
+			itemCode: historyMatch.code,
 			description: historyMatch.description,
-			uom: normalizeUom(historyMatch.uom),
-			unitPrice: historyMatch.lastUnitPrice,
+			uom: normalizeUom(historyMatch.baseUom),
+			unitPrice: historyMatch.price,
 			matched: true,
 			source: "history",
 		};
 	}
 
-	// 2. Fall back to generic catalogue search
-	const catalogueMatches = searchItems(itemName);
-	if (catalogueMatches.length > 0) {
-		const best = catalogueMatches[0];
-		return {
-			itemCode: best.code,
-			description: best.description,
-			uom: normalizeUom(best.baseUom),
-			unitPrice: null,
-			matched: true,
-			source: "catalogue",
-		};
+	return {
+		itemCode: catalogueMatch.item.code,
+		description: catalogueMatch.item.description,
+		uom: normalizeUom(catalogueMatch.item.baseUom),
+		unitPrice: catalogueMatch.item.price,
+		matched: true,
+		source: "catalogue",
+	};
+}
+
+function findHistoryTieBreaker(
+	itemName: string,
+	preferences: DebtorItemPreference[],
+	catalogueItems: Item[],
+	bestDescriptionScore: number,
+): Item | null {
+	if (preferences.length === 0) return null;
+
+	for (const pref of preferences) {
+		const item = catalogueItems.find(
+			(catalogueItem) =>
+				catalogueItem.code.toLowerCase() === pref.itemCode.toLowerCase(),
+		);
+		if (!item) continue;
+
+		const preferenceMatch = getTextMatch(itemName, pref.description);
+		if (preferenceMatch.matchedMeaningfulTokens === 0) continue;
+
+		const catalogueDescriptionMatch = getTextMatch(itemName, item.description);
+		if (catalogueDescriptionMatch.score === bestDescriptionScore) return item;
 	}
 
 	return null;
@@ -75,58 +111,64 @@ function findBestPreference(
 	itemName: string,
 	preferences: DebtorItemPreference[],
 ): DebtorItemPreference | null {
+	return findBestPreferenceMatch(itemName, preferences)?.preference ?? null;
+}
+
+function findBestPreferenceMatch(
+	itemName: string,
+	preferences: DebtorItemPreference[],
+): PreferenceMatch | null {
 	if (preferences.length === 0) return null;
 
-	const tokens = tokenize(itemName);
+	const tokens = tokenizeSearchText(itemName);
 	if (tokens.length === 0) return null;
 
-	let bestMatch: DebtorItemPreference | null = null;
+	let bestMatch: PreferenceMatch | null = null;
 	let bestScore = 0;
 
 	for (const pref of preferences) {
 		const target = `${pref.itemCode} ${pref.description}`.toLowerCase();
-		let score = 0;
-
-		for (const token of tokens) {
-			if (target.includes(token)) {
-				score++;
-			}
-		}
+		const match = getTextMatch(itemName, target);
 
 		// Require at least 1 token match
-		if (score > bestScore) {
-			bestScore = score;
-			bestMatch = pref;
+		if (match.score > bestScore) {
+			bestScore = match.score;
+			bestMatch = {
+				preference: pref,
+				score: match.score,
+				matchedMeaningfulTokens: match.matchedMeaningfulTokens,
+			};
 		}
 	}
 
 	return bestMatch;
 }
 
+function findBestCatalogueItem(
+	itemName: string,
+	catalogueItems: Item[],
+): { item: Item; score: number; descriptionScore: number } | null {
+	if (catalogueItems.length === 0) return null;
+
+	const [bestMatch] = rankCatalogueItemsByDescription(catalogueItems, itemName);
+	return bestMatch && bestMatch.score > 0
+		? {
+				item: bestMatch.item,
+				score: bestMatch.score,
+				descriptionScore: bestMatch.descriptionScore,
+			}
+		: null;
+}
+
 /** Tokenize a string into lowercase words, filtering out noise. */
 function tokenize(text: string): string[] {
-	const noise = new Set([
-		"x",
-		"pkt",
-		"ctn",
-		"kg",
-		"pc",
-		"pcs",
-		"tube",
-		"btl",
-		"the",
-		"a",
-		"an",
-		"of",
-		"and",
-	]);
-
-	return text
-		.toLowerCase()
-		.replace(/[^a-z0-9/\s]/g, " ")
-		.split(/\s+/)
-		.filter((t) => t.length > 1 && !noise.has(t));
+	return tokenizeSearchText(text);
 }
 
 // Exported for testing
-export { findBestPreference as _findBestPreference, tokenize as _tokenize };
+export {
+	findBestCatalogueItem as _findBestCatalogueItem,
+	findBestPreference as _findBestPreference,
+	scoreTextMatch as _scoreMatch,
+	tokenize as _tokenize,
+};
