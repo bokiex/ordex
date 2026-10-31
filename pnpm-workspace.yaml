@@ -1,2 +1,8 @@
-onlyBuiltDependencies:
-  - lefthook
+allowBuilds:
+  '@heroui/shared-utils': true
+  '@parcel/watcher': true
+  better-sqlite3: true
+  esbuild: true
+  lefthook: true
+  ngrok: false
+  puppeteer: true

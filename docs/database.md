@@ -132,19 +132,26 @@ orders.id    ←── order_items.order_id
 
 ## Seed Script (`src/db/seed.ts`)
 
-Run: `bun run db:seed`
+For a fresh database, apply migrations first, then seed:
+
+```bash
+pnpm db:migrate
+pnpm db:seed
+```
+
+`db:seed` runs with Node and the `tsx` loader because the Drizzle `better-sqlite3` driver requires Node's native-addon support; it cannot run under Bun.
 
 1. Reads `Item Codes 26.2.26.xlsx` → inserts into `items`, using the latest invoice-history price for each matching item code
 2. Reads `debtor listing.xlsx` → inserts into `debtors`
 3. Reads `INV DETAIL LISTING.xlsx` → inserts into `invoice_history` (500-row batches)
 4. Converts Excel serial dates to ISO strings
-5. Uses `onConflictDoNothing()` — safe to re-run
+5. Uses `onConflictDoNothing()` for `items` and `debtors`. Invoice-history rows are appended, so seed only a new database unless you intentionally want duplicate history rows.
 
 ## Migration Commands
 
 ```bash
-bun run db:generate   # Generate migration from schema changes
-bun run db:migrate    # Apply pending migrations
-bun run db:push       # Push schema directly (dev shortcut)
-bun run db:studio     # Open Drizzle Studio GUI
+pnpm db:generate   # Generate migration from schema changes
+pnpm db:migrate    # Apply pending migrations
+pnpm db:push       # Push schema directly (dev shortcut)
+pnpm db:studio     # Open Drizzle Studio GUI
 ```

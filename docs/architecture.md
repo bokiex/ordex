@@ -5,6 +5,7 @@
 ```
 ordex/
 ├── docs/                          # Documentation & reference data
+│   ├── research/                  # Time-bound investigations and primary-source findings
 │   ├── excel sheets/              # AutoCount reference Excel files
 │   ├── architecture.md            # This file
 │   ├── whatsapp-group-worker.md   # WhatsApp Web group worker setup + env vars
@@ -55,21 +56,23 @@ ordex/
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| Framework | TanStack Start (React + SSR) | 1.132.x |
-| Runtime | Bun | latest |
+| Framework | TanStack Start (React + SSR) | 1.166.1 (pnpm lock) |
+| Runtime | Node.js | 22.x |
+| Worker runtime | Bun | latest (WhatsApp group worker only) |
 | Package Manager | pnpm | 10.12.3 |
-| Language | TypeScript | 5.7.2 |
+| Language | TypeScript | 5.9.3 (pnpm lock) |
 | UI Library | HeroUI | 2.8.9 |
-| CSS | Tailwind CSS v4 | 4.1.18 |
+| CSS | Tailwind CSS v4 | 4.2.1 |
 | Animation | Framer Motion | 12.34.4 |
 | Icons | Lucide React | 0.545.0 |
 | ORM | Drizzle ORM | 0.45.1 |
 | Database | SQLite (better-sqlite3) | 12.6.2 |
+| WhatsApp Web client | whatsapp-web.js | 1.34.7 |
 | Excel | SheetJS (xlsx) | 0.18.5 |
 | AI | Ollama (qwen2.5:7b) | local |
 | Linter | Biome | 2.4.5 |
-| Build | Vite | 7.1.7 |
-| Tests | Vitest | 3.0.5 |
+| Build | Vite | 7.3.1 (pnpm lock) |
+| Tests | Vitest | 3.2.4 (pnpm lock) |
 | Server | Nitro (nightly) | latest |
 
 ## Incoming Message Flow
@@ -105,6 +108,14 @@ The SSE broker is process-local. If the app is deployed with multiple server ins
 ### `lefthook.yml`
 - Pre-commit: `pnpm lint {staged_files}` with `stage_fixed: true`
 
+### `pnpm-workspace.yaml`
+- `allowBuilds` explicitly permits required native and install-time build scripts, including `better-sqlite3`, `esbuild`, and Puppeteer. This is required for a fresh `pnpm install` to produce the `better-sqlite3` native binding used by the database.
+
+### Dependency lockfiles
+- Use `pnpm install --frozen-lockfile` for a reproducible setup.
+- `pnpm-lock.yaml` locks TanStack Start 1.166.1 with Vite 7.3.1. Do not broadly upgrade dependencies during setup: TanStack Start 1.169+ requires Vite 8 and falls back to Vite's missing-`index.html` error when paired with Vite 7.
+- `bun.lock` is retained for the Bun-based WhatsApp worker; `db:seed` uses Node and `tsx` instead.
+
 ### `mise.toml`
 - Node 22, pnpm 10.12.3
 - Env files: `.env`, `.env.local`, `.env.local.tunnel`
@@ -123,7 +134,7 @@ The SSE broker is process-local. If the app is deployed with multiple server ins
 | `db:migrate` | `drizzle-kit migrate` | Apply migrations |
 | `db:push` | `drizzle-kit push` | Push schema directly |
 | `db:studio` | `drizzle-kit studio` | Open Drizzle Studio |
-| `db:seed` | `bun run src/db/seed.ts` | Seed DB from Excel |
+| `db:seed` | `node --import tsx src/db/seed.ts` | Seed DB from Excel with Node (required by `better-sqlite3`) |
 
 ## Environment Variables
 

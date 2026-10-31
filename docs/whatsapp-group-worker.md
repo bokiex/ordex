@@ -11,6 +11,8 @@ The worker does not parse messages or create orders directly. Messages land in t
 
 This is separate from the existing Meta Cloud API webhook flow. The worker is useful when the source messages live in shared WhatsApp groups instead of a business webhook inbox.
 
+The project uses `whatsapp-web.js` v1.34.7. It includes the upstream [frozen-start/auth-timeout fix](https://github.com/wwebjs/whatsapp-web.js/pull/127048); do not downgrade the locked dependency when setting up the worker.
+
 ## Files
 
 | File | Purpose |
@@ -36,15 +38,26 @@ This is separate from the existing Meta Cloud API webhook flow. The worker is us
 
 ## Setup
 
-1. Install dependencies:
+1. On Ubuntu, install the Chrome runtime libraries required by Puppeteer:
 
 ```bash
-pnpm install
+sudo apt update
+sudo apt install -y libnspr4 libnss3 libasound2t64
 ```
 
-2. Ensure Puppeteer has a browser available.
+On Ubuntu releases without `libasound2t64`, install `libasound2` instead.
 
-Fresh `pnpm` installs can block Puppeteer postinstall scripts. If the worker fails to launch Chrome/Chromium, run:
+2. Install dependencies:
+
+```bash
+pnpm install --frozen-lockfile
+```
+
+`pnpm-workspace.yaml` uses `allowBuilds` to permit Puppeteer's install script, along with the other required native build scripts, during a fresh install. If pnpm reports ignored build scripts, run `pnpm approve-builds`, approve Puppeteer and `better-sqlite3`, then rerun the install command.
+
+3. Ensure Puppeteer has a browser available.
+
+If the worker fails to launch Chrome/Chromium, run:
 
 ```bash
 pnpm exec puppeteer browsers install chrome
@@ -52,13 +65,13 @@ pnpm exec puppeteer browsers install chrome
 
 If you want to use a system browser instead, set `WHATSAPP_CHROME_EXECUTABLE_PATH`.
 
-3. Start the Ordex app:
+4. Start the Ordex app:
 
 ```bash
 pnpm dev
 ```
 
-4. Start the worker in a second terminal:
+5. Start the worker in a second terminal:
 
 ```bash
 pnpm whatsapp:start
@@ -70,7 +83,7 @@ For watch mode during development:
 pnpm whatsapp:dev
 ```
 
-5. On first startup, scan the QR code printed in the terminal with WhatsApp on your phone. The linked session is persisted under `.wwebjs_auth/`.
+6. On first startup, scan the QR code printed in the terminal with WhatsApp on your phone. Wait for the `Ready. Forwarding group messages ...` lifecycle log before testing an inbound group message. The linked session is persisted under `.wwebjs_auth/`.
 
 ## Runtime Behavior
 

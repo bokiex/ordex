@@ -1,8 +1,8 @@
 # Testing
 
-**Framework:** Vitest 3.0.5 with node environment
+**Framework:** Vitest 3.2.4 with node environment
 **Config:** `vitest.config.ts` — includes all `src/**/*.test.ts`
-**Run:** `bun run test`
+**Run:** `pnpm test`
 
 ## Test Coverage Summary
 
@@ -10,13 +10,14 @@
 |--------|------|-------|------|
 | WhatsApp | `src/lib/whatsapp/__tests__/types.test.ts` | 7 | Unit (pure logic) |
 | Parser | `src/lib/parser/__tests__/parser.test.ts` | 10 | Unit (pure logic) |
-| Matcher | `src/lib/matcher/__tests__/matcher.test.ts` | 17 | Unit (pure logic) |
+| Matcher | `src/lib/matcher/__tests__/matcher.test.ts` | 22 | Unit (mocked catalogue access) |
 | WhatsApp Group Worker | `src/workers/whatsapp-group/__tests__/config.test.ts` | 3 | Unit (env parsing) |
 | WhatsApp Group Worker | `src/workers/whatsapp-group/__tests__/client.test.ts` | 2 | Unit (client options) |
 | WhatsApp Group Worker | `src/workers/whatsapp-group/__tests__/handlers.test.ts` | 6 | Unit (message filtering + mocked fetch) |
-| **Total** | | **41** | |
+| Database seed | `src/db/__tests__/seed.test.ts` | 1 | Integration (temporary migrated SQLite DB + configured seed command) |
+| **Total** | | **51** | |
 
-Tests remain unit-scoped. The worker handler tests use mocked `fetch` and logger calls; no tests hit the network or database.
+Most tests are unit-scoped. The worker handler tests use mocked `fetch` and logger calls. The seed integration test has no network dependency: it creates and cleans up an isolated SQLite database.
 
 ## WhatsApp Tests (7)
 
@@ -45,20 +46,13 @@ Tests remain unit-scoped. The worker handler tests use mocked `fetch` and logger
 | 9 | Filter invalid items | Mixed validity array |
 | 10 | Coerce rawText | Numeric rawText → string |
 
-## Matcher Tests (13)
+## Matcher Tests (22)
 
-| # | Test | What It Validates |
-|---|------|-------------------|
-| 1-4 | tokenize() | Splitting, noise filtering, slash-numbers, empty |
-| 5 | Lala → most-ordered variant | Frequency-based preference |
-| 6 | Lala 30/40 → specific size | Specific match over generic |
-| 7 | Sotong → sotong tube | Simple preference match |
-| 8 | Yellow noodle → correct match | Multi-word matching |
-| 9 | Unrelated item → null | No false positives |
-| 10 | Empty preferences → null | Edge case |
-| 11 | matchItem history source | Returns source: "history" with price |
-| 12 | matchItem specific match | More tokens = better match |
-| 13 | matchItem fallback | Catalogue fallback for unknown items |
+| Area | Tests | What It Validates |
+|------|-------|-------------------|
+| `tokenize()` | 4 | Lowercasing, noise/UOM filtering, slash-number preservation, and noise-only input |
+| `findBestPreference()` | 6 | Frequency-based selection, specific-size matches, multi-word matching, and no-match cases |
+| `matchItem()` | 12 | History tie-breakers, active catalogue prices, fuzzy and token matching, catalogue ranking, stale history rejection, empty catalogue handling, and noodle variants |
 
 ## WhatsApp Group Worker Tests (11)
 
@@ -75,6 +69,10 @@ Tests remain unit-scoped. The worker handler tests use mocked `fetch` and logger
 | 9 | Skip non-group chats | Direct messages are ignored |
 | 10 | Process group message | Group messages are logged and posted to `/api/incoming-messages` |
 | 11 | Skip empty group message | Blank group messages are ignored before any API call |
+
+## Database Seed Test (1)
+
+The seed integration test applies all Drizzle migrations to a temporary SQLite database, runs the configured `db:seed` package command, checks that each reference-data table has rows, and deletes the temporary database. It prevents a regression to the unsupported Bun + `better-sqlite3` runtime combination.
 
 ## Manual API Testing
 
@@ -93,4 +91,4 @@ See `docs/test-examples.md` for curl commands with real customer/item data to te
 2. Name file `*.test.ts`
 3. Import from module barrel (`@/lib/your-module`)
 4. Use `describe`/`it` from Vitest
-5. Run: `bun run test`
+5. Run: `pnpm test`

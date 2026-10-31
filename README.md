@@ -6,16 +6,36 @@ Ordex turns WhatsApp customer order messages into reviewable draft orders. Incom
 
 - Node.js 22
 - pnpm 10
-- Bun, used by the database seed script and WhatsApp group worker
+- Bun, used by the WhatsApp group worker
 - SQLite, via `better-sqlite3`
 - Ollama running locally for AI order generation
+- For Ubuntu WhatsApp-worker hosts: Chrome runtime libraries
+
+Install the Ubuntu browser dependencies before running the WhatsApp worker:
+
+```bash
+sudo apt update
+sudo apt install -y libnspr4 libnss3 libasound2t64
+```
+
+On Ubuntu releases that do not provide `libasound2t64`, install `libasound2` instead.
 
 The default parser expects Ollama at `http://localhost:11434` with model `qwen2.5:7b`.
 
 ## Install
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
+```
+
+`pnpm-workspace.yaml` explicitly permits required native and install-time build scripts, including `better-sqlite3` and Puppeteer. Do not bypass the lockfile or broadly update dependencies during setup: the locked TanStack Start and Vite versions are a compatible pair.
+
+If pnpm reports **Ignored build scripts**, run `pnpm approve-builds`, approve `better-sqlite3`, `esbuild`, and Puppeteer, then rerun the install command.
+
+Install Chrome for Puppeteer before starting the WhatsApp worker:
+
+```bash
+pnpm exec puppeteer browsers install chrome
 ```
 
 ## Database
@@ -33,6 +53,8 @@ Seed reference data from the Excel files in `docs/excel sheets/`:
 ```bash
 pnpm db:seed
 ```
+
+The seed command runs with Node and `tsx`; it must not run under Bun because `better-sqlite3` is a native Node addon. Seed only a new database: invoice-history rows are appended on subsequent runs.
 
 Useful database commands:
 
@@ -123,7 +145,7 @@ For development with watch mode:
 pnpm whatsapp:dev
 ```
 
-On first startup, scan the QR code printed in the terminal. The worker forwards group messages to `POST /api/incoming-messages`, where they are stored for review.
+On first startup, scan the QR code printed in the terminal. Wait for `Ready. Forwarding group messages ...` before testing; the worker then forwards messages from every group visible to the linked account to `POST /api/incoming-messages`, where they are stored for review. Messages sent by the linked account itself are intentionally skipped.
 
 Common worker environment variables:
 
@@ -167,3 +189,4 @@ pnpm preview
 - `docs/ai-order-parser.md` — AI parser behavior
 - `docs/item-matcher.md` — customer-history item matching
 - `docs/test-examples.md` — curl examples
+- `docs/research/` — time-bound investigations and primary-source findings
