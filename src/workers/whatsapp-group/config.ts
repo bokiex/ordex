@@ -16,6 +16,7 @@ export type WhatsAppGroupWorkerConfig = {
 	puppeteerHeadless: boolean;
 	puppeteerExecutablePath?: string;
 	qrSmall: boolean;
+	includeSelfMessages: boolean;
 };
 
 export function getWhatsAppGroupWorkerConfig(
@@ -48,6 +49,11 @@ export function getWhatsAppGroupWorkerConfig(
 		puppeteerExecutablePath:
 			env.WHATSAPP_CHROME_EXECUTABLE_PATH?.trim() || undefined,
 		qrSmall: readBoolean(env.WHATSAPP_QR_SMALL, true, "WHATSAPP_QR_SMALL"),
+		includeSelfMessages: readBoolean(
+			env.WHATSAPP_INCLUDE_SELF_MESSAGES,
+			false,
+			"WHATSAPP_INCLUDE_SELF_MESSAGES",
+		),
 	};
 }
 

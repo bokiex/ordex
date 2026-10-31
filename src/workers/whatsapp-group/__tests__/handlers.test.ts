@@ -1,9 +1,12 @@
+import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
+import type { Client } from "whatsapp-web.js";
 import {
 	buildOrderRequest,
 	extractSenderName,
 	handleIncomingGroupMessage,
 	type IncomingMessageLike,
+	registerWhatsAppGroupMessageHandler,
 	type WorkerLogger,
 } from "../handlers.ts";
 
@@ -70,6 +73,43 @@ describe("buildOrderRequest", () => {
 });
 
 describe("handleIncomingGroupMessage", () => {
+	it("skips self-authored messages by default", async () => {
+		const fetchImpl = vi.fn<typeof fetch>();
+
+		const result = await handleIncomingGroupMessage(
+			createMessage({ fromMe: true }),
+			{
+				fetchImpl,
+				logger: createLogger(),
+				incomingMessagesEndpoint: "http://localhost:3000/api/incoming-messages",
+			},
+		);
+
+		expect(result).toEqual({ status: "skipped", reason: "from_me" });
+		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it("processes self-authored group messages when explicitly enabled", async () => {
+		const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+			new Response(JSON.stringify({ message: { id: 43 } }), {
+				status: 201,
+			}),
+		);
+
+		const result = await handleIncomingGroupMessage(
+			createMessage({ fromMe: true }),
+			{
+				fetchImpl,
+				includeSelfMessages: true,
+				logger: createLogger(),
+				incomingMessagesEndpoint: "http://localhost:3000/api/incoming-messages",
+			},
+		);
+
+		expect(result).toEqual({ status: "processed", incomingMessageId: 43 });
+		expect(fetchImpl).toHaveBeenCalledOnce();
+	});
+
 	it("skips non-group messages", async () => {
 		const fetchImpl = vi.fn<typeof fetch>();
 
@@ -130,6 +170,26 @@ describe("handleIncomingGroupMessage", () => {
 		expect(logger.info).toHaveBeenCalledWith(
 			expect.stringContaining("Orders Group"),
 		);
+	});
+
+	it("subscribes to self-created messages only when enabled", () => {
+		const disabledClient = new EventEmitter() as unknown as Client;
+		const enabledClient = new EventEmitter() as unknown as Client;
+		const options = {
+			incomingMessagesEndpoint: "http://localhost:3000/api/incoming-messages",
+			logger: createLogger(),
+		};
+
+		registerWhatsAppGroupMessageHandler(disabledClient, options);
+		registerWhatsAppGroupMessageHandler(enabledClient, {
+			...options,
+			includeSelfMessages: true,
+		});
+
+		expect(disabledClient.listenerCount("message")).toBe(1);
+		expect(disabledClient.listenerCount("message_create")).toBe(0);
+		expect(enabledClient.listenerCount("message")).toBe(1);
+		expect(enabledClient.listenerCount("message_create")).toBe(1);
 	});
 
 	it("skips empty group messages", async () => {

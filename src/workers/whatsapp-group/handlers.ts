@@ -23,6 +23,7 @@ export type IncomingMessageLike = Pick<
 
 export type GroupMessageHandlerOptions = {
 	incomingMessagesEndpoint: string;
+	includeSelfMessages?: boolean;
 	fetchImpl?: typeof fetch;
 	logger?: WorkerLogger;
 };
@@ -78,7 +79,7 @@ export async function handleIncomingGroupMessage(
 	message: IncomingMessageLike,
 	options: GroupMessageHandlerOptions,
 ): Promise<GroupMessageResult> {
-	if (message.fromMe) {
+	if (message.fromMe && !options.includeSelfMessages) {
 		return { status: "skipped", reason: "from_me" };
 	}
 
@@ -149,7 +150,7 @@ export function registerWhatsAppGroupMessageHandler(
 ): void {
 	const logger = options.logger ?? console;
 
-	client.on("message", (message) => {
+	const processMessage = (message: IncomingMessageLike) => {
 		void handleIncomingGroupMessage(message, { ...options, logger }).catch(
 			(error) => {
 				logger.error(
@@ -157,7 +158,17 @@ export function registerWhatsAppGroupMessageHandler(
 				);
 			},
 		);
-	});
+	};
+
+	client.on("message", processMessage);
+
+	if (options.includeSelfMessages) {
+		client.on("message_create", (message) => {
+			if (message.fromMe) {
+				processMessage(message);
+			}
+		});
+	}
 }
 
 async function postIncomingMessageRequest(

@@ -13,6 +13,7 @@ describe("getWhatsAppGroupWorkerConfig", () => {
 		expect(config.reconnectDelayMs).toBe(5_000);
 		expect(config.qrSmall).toBe(true);
 		expect(config.puppeteerHeadless).toBe(true);
+		expect(config.includeSelfMessages).toBe(false);
 		expect(config.sessionPath).toContain(".wwebjs_auth");
 		expect(config.cachePath).toContain(".wwebjs_cache");
 	});
@@ -25,6 +26,7 @@ describe("getWhatsAppGroupWorkerConfig", () => {
 			WHATSAPP_CLIENT_ID: "ops-bot",
 			WHATSAPP_PUPPETEER_HEADLESS: "false",
 			WHATSAPP_QR_SMALL: "false",
+			WHATSAPP_INCLUDE_SELF_MESSAGES: "true",
 			WHATSAPP_RECONNECT_DELAY_MS: "9000",
 			WHATSAPP_SESSION_PATH: "tmp/auth",
 		});
@@ -37,6 +39,7 @@ describe("getWhatsAppGroupWorkerConfig", () => {
 		expect(config.reconnectDelayMs).toBe(9_000);
 		expect(config.puppeteerHeadless).toBe(false);
 		expect(config.qrSmall).toBe(false);
+		expect(config.includeSelfMessages).toBe(true);
 		expect(config.puppeteerExecutablePath).toBe("/usr/bin/google-chrome");
 		expect(config.sessionPath).toContain("tmp/auth");
 		expect(config.cachePath).toContain("tmp/cache");
@@ -54,5 +57,11 @@ describe("getWhatsAppGroupWorkerConfig", () => {
 				WHATSAPP_RECONNECT_DELAY_MS: "0",
 			}),
 		).toThrow('Invalid WHATSAPP_RECONNECT_DELAY_MS: "0"');
+
+		expect(() =>
+			getWhatsAppGroupWorkerConfig({
+				WHATSAPP_INCLUDE_SELF_MESSAGES: "maybe",
+			}),
+		).toThrow('Invalid WHATSAPP_INCLUDE_SELF_MESSAGES: "maybe"');
 	});
 });

@@ -76,6 +76,7 @@ export async function startWhatsAppGroupWorker(
 
 	registerWhatsAppGroupMessageHandler(client, {
 		incomingMessagesEndpoint: config.incomingMessagesEndpoint,
+		includeSelfMessages: config.includeSelfMessages,
 		logger: console,
 	});
 
@@ -95,6 +96,12 @@ export async function startWhatsAppGroupWorker(
 		console.info(
 			`[WhatsApp Group Worker] Ready. Forwarding group messages to ${config.incomingMessagesEndpoint}.`,
 		);
+
+		if (config.includeSelfMessages) {
+			console.warn(
+				"[WhatsApp Group Worker] Self-authored group message capture is enabled for testing.",
+			);
+		}
 	});
 
 	client.on("change_state", (state) => {

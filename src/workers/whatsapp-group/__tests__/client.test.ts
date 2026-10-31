@@ -13,6 +13,7 @@ const config: WhatsAppGroupWorkerConfig = {
 	puppeteerHeadless: false,
 	puppeteerExecutablePath: "/usr/bin/chromium",
 	qrSmall: true,
+	includeSelfMessages: false,
 };
 
 describe("buildWhatsAppClientOptions", () => {

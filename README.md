@@ -145,7 +145,15 @@ For development with watch mode:
 pnpm whatsapp:dev
 ```
 
-On first startup, scan the QR code printed in the terminal. Wait for `Ready. Forwarding group messages ...` before testing; the worker then forwards messages from every group visible to the linked account to `POST /api/incoming-messages`, where they are stored for review. Messages sent by the linked account itself are intentionally skipped.
+On first startup, scan the QR code printed in the terminal. Wait for `Ready. Forwarding group messages ...` before testing; the worker then forwards messages from every group visible to the linked account to `POST /api/incoming-messages`, where they are stored for review. Messages sent by the linked account itself are skipped by default.
+
+For temporary self-message testing, start the worker with:
+
+```bash
+WHATSAPP_INCLUDE_SELF_MESSAGES=true pnpm whatsapp:start
+```
+
+This subscribes to WhatsApp Web's `message_create` event for the linked account's messages without duplicating messages from other participants. Remove the variable after testing.
 
 Common worker environment variables:
 
@@ -156,6 +164,8 @@ WHATSAPP_CACHE_PATH=.wwebjs_cache
 WHATSAPP_RECONNECT_DELAY_MS=5000
 WHATSAPP_PUPPETEER_HEADLESS=true
 WHATSAPP_CHROME_EXECUTABLE_PATH=/path/to/chrome
+# Test only: also store messages sent by the linked WhatsApp account.
+WHATSAPP_INCLUDE_SELF_MESSAGES=true
 ```
 
 ## Build And Test

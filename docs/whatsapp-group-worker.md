@@ -35,6 +35,7 @@ The project uses `whatsapp-web.js` v1.34.7. It includes the upstream [frozen-sta
 | `WHATSAPP_PUPPETEER_HEADLESS` | `true` | Launch browser headlessly |
 | `WHATSAPP_CHROME_EXECUTABLE_PATH` | — | Optional Chrome/Chromium path override |
 | `WHATSAPP_QR_SMALL` | `true` | Render compact QR codes in the terminal |
+| `WHATSAPP_INCLUDE_SELF_MESSAGES` | `false` | Also store messages sent by the linked account; use only for testing |
 
 ## Setup
 
@@ -88,7 +89,8 @@ pnpm whatsapp:dev
 ## Runtime Behavior
 
 - Only group messages are processed (`chat.isGroup === true`)
-- Messages sent by the worker account itself are skipped
+- Messages sent by the worker account itself are skipped by default
+- Set `WHATSAPP_INCLUDE_SELF_MESSAGES=true` only for testing. The worker then listens to WhatsApp Web's `message_create` event for messages with `fromMe === true`; inbound messages remain handled by the `message` event and are not duplicated.
 - Customer matching uses the WhatsApp group name
 - Sender names still come from the WhatsApp contact (`pushname` → `name` → `shortName` → number) for attribution
 - Every group message is logged with timestamp, group name, sender, and flattened message body
@@ -117,4 +119,6 @@ WHATSAPP_SESSION_PATH=.wwebjs_auth
 WHATSAPP_CACHE_PATH=.wwebjs_cache
 WHATSAPP_RECONNECT_DELAY_MS=5000
 WHATSAPP_PUPPETEER_HEADLESS=true
+# Test only: also accept group messages sent by the linked account.
+WHATSAPP_INCLUDE_SELF_MESSAGES=true
 ```
