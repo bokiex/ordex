@@ -4,12 +4,14 @@ import {
 	getWhatsAppGroupWorkerConfig,
 	type WhatsAppGroupWorkerConfig,
 } from "./config.ts";
+import { createGroupDisplayNameResolver } from "./groupNames.ts";
 import { registerWhatsAppGroupMessageHandler } from "./handlers.ts";
 
 export async function startWhatsAppGroupWorker(
 	config: WhatsAppGroupWorkerConfig = getWhatsAppGroupWorkerConfig(),
 ): Promise<void> {
 	const client = createWhatsAppGroupClient(config);
+	const groupDisplayNames = createGroupDisplayNameResolver(client);
 	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	let isInitializing = false;
 	let shuttingDown = false;
@@ -74,10 +76,26 @@ export async function startWhatsAppGroupWorker(
 		}, config.reconnectDelayMs);
 	};
 
+	const refreshGroupDisplayNames = (reason: string) => {
+		void groupDisplayNames
+			.refresh()
+			.then((count) => {
+				console.info(
+					`[WhatsApp Group Worker] Loaded ${count} group display names (${reason}).`,
+				);
+			})
+			.catch((error) => {
+				console.error(
+					`[WhatsApp Group Worker] Failed to load group display names (${reason}): ${formatError(error)}`,
+				);
+			});
+	};
+
 	registerWhatsAppGroupMessageHandler(client, {
 		incomingMessagesEndpoint: config.incomingMessagesEndpoint,
 		includeSelfMessages: config.includeSelfMessages,
 		logger: console,
+		resolveGroupDisplayName: groupDisplayNames.resolve,
 	});
 
 	client.on("qr", (qr) => {
@@ -102,6 +120,12 @@ export async function startWhatsAppGroupWorker(
 				"[WhatsApp Group Worker] Self-authored group message capture is enabled for testing.",
 			);
 		}
+
+		refreshGroupDisplayNames("ready");
+	});
+
+	client.on("group_update", () => {
+		refreshGroupDisplayNames("group_update");
 	});
 
 	client.on("change_state", (state) => {

@@ -152,3 +152,4 @@ The SSE broker is process-local. If the app is deployed with multiple server ins
 | `WHATSAPP_PUPPETEER_HEADLESS` | `true` | Whether the worker launches Chrome headlessly |
 | `WHATSAPP_CHROME_EXECUTABLE_PATH` | — | Optional system Chrome/Chromium path |
 | `WHATSAPP_QR_SMALL` | `true` | Render a compact QR code in the terminal |
+| `WHATSAPP_INCLUDE_SELF_MESSAGES` | `false` | Test-only: store group messages sent by the linked account |

@@ -2,35 +2,35 @@ import type { Client, Contact, Message } from "whatsapp-web.js";
 
 export type WorkerLogger = Pick<typeof console, "error" | "info" | "warn">;
 
-type ChatLike = {
-	isGroup: boolean;
-	name?: string;
-};
-
 type ContactLike = Partial<
 	Pick<Contact, "name" | "number" | "pushname" | "shortName">
 >;
 
 export type IncomingMessageLike = Pick<
 	Message,
-	"author" | "body" | "fromMe"
+	"author" | "body" | "from" | "fromMe" | "to"
 > & {
 	id?: string | { _serialized?: string };
 	timestamp: number;
-	getChat(): Promise<ChatLike>;
 	getContact(): Promise<ContactLike>;
 };
 
 export type GroupMessageHandlerOptions = {
 	incomingMessagesEndpoint: string;
 	includeSelfMessages?: boolean;
+	resolveGroupDisplayName?: (
+		groupChatId: string,
+	) => Promise<string | undefined>;
 	fetchImpl?: typeof fetch;
 	logger?: WorkerLogger;
 };
 
 export type GroupMessageResult =
 	| { status: "processed"; incomingMessageId?: number }
-	| { status: "skipped"; reason: "empty_body" | "from_me" | "not_group" };
+	| {
+			status: "skipped";
+			reason: "empty_body" | "from_me" | "group_name_unavailable" | "not_group";
+	  };
 
 export function extractSenderName(
 	contact: ContactLike | null | undefined,
@@ -83,8 +83,8 @@ export async function handleIncomingGroupMessage(
 		return { status: "skipped", reason: "from_me" };
 	}
 
-	const chat = await message.getChat();
-	if (!chat.isGroup) {
+	const groupChatId = getGroupChatId(message);
+	if (!groupChatId) {
 		return { status: "skipped", reason: "not_group" };
 	}
 
@@ -96,6 +96,11 @@ export async function handleIncomingGroupMessage(
 		return { status: "skipped", reason: "empty_body" };
 	}
 
+	const groupName = await resolveGroupDisplayName(groupChatId, options);
+	if (!groupName) {
+		return { status: "skipped", reason: "group_name_unavailable" };
+	}
+
 	const contact = await message.getContact().catch((error: unknown) => {
 		options.logger?.warn(
 			`[WhatsApp Group Worker] Failed to resolve contact: ${formatError(error)}`,
@@ -104,7 +109,6 @@ export async function handleIncomingGroupMessage(
 	});
 
 	const senderName = extractSenderName(contact, message.author);
-	const groupName = chat.name?.trim() || "Unknown Group";
 	const timestamp = formatWhatsAppTimestamp(message.timestamp);
 
 	options.logger?.info(
@@ -196,6 +200,34 @@ async function postIncomingMessageRequest(
 async function readResponseText(response: Response): Promise<string> {
 	const body = await response.text();
 	return body || "Empty response body";
+}
+
+async function resolveGroupDisplayName(
+	groupChatId: string,
+	options: GroupMessageHandlerOptions,
+): Promise<string | undefined> {
+	if (!options.resolveGroupDisplayName) {
+		options.logger?.error(
+			"[WhatsApp Group Worker] Group display-name resolver is not configured; message was not stored.",
+		);
+		return undefined;
+	}
+
+	try {
+		return (
+			(await options.resolveGroupDisplayName(groupChatId))?.trim() || undefined
+		);
+	} catch (error) {
+		options.logger?.error(
+			`[WhatsApp Group Worker] Failed to resolve group display name; message was not stored: ${formatError(error)}`,
+		);
+		return undefined;
+	}
+}
+
+function getGroupChatId(message: IncomingMessageLike): string | undefined {
+	const chatId = message.fromMe ? message.to : message.from;
+	return chatId?.endsWith("@g.us") ? chatId : undefined;
 }
 
 function collapseForLog(value: string): string {

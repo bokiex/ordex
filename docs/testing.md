@@ -13,9 +13,10 @@
 | Matcher | `src/lib/matcher/__tests__/matcher.test.ts` | 22 | Unit (mocked catalogue access) |
 | WhatsApp Group Worker | `src/workers/whatsapp-group/__tests__/config.test.ts` | 3 | Unit (env parsing) |
 | WhatsApp Group Worker | `src/workers/whatsapp-group/__tests__/client.test.ts` | 2 | Unit (client options) |
-| WhatsApp Group Worker | `src/workers/whatsapp-group/__tests__/handlers.test.ts` | 6 | Unit (message filtering + mocked fetch) |
+| WhatsApp Group Worker | `src/workers/whatsapp-group/__tests__/handlers.test.ts` | 10 | Unit (message filtering, display-name requirement, mocked fetch) |
+| WhatsApp Group Worker | `src/workers/whatsapp-group/__tests__/groupNames.test.ts` | 2 | Unit (WhatsApp group display-name cache) |
 | Database seed | `src/db/__tests__/seed.test.ts` | 1 | Integration (temporary migrated SQLite DB + configured seed command) |
-| **Total** | | **51** | |
+| **Total** | | **57** | |
 
 Most tests are unit-scoped. The worker handler tests use mocked `fetch` and logger calls. The seed integration test has no network dependency: it creates and cleans up an isolated SQLite database.
 
@@ -54,21 +55,14 @@ Most tests are unit-scoped. The worker handler tests use mocked `fetch` and logg
 | `findBestPreference()` | 6 | Frequency-based selection, specific-size matches, multi-word matching, and no-match cases |
 | `matchItem()` | 12 | History tie-breakers, active catalogue prices, fuzzy and token matching, catalogue ranking, stale history rejection, empty catalogue handling, and noodle variants |
 
-## WhatsApp Group Worker Tests (11)
+## WhatsApp Group Worker Tests (17)
 
-| # | Test | What It Validates |
-|---|------|-------------------|
-| 1 | Config defaults | Default API URL, session/cache paths, reconnect delay |
-| 2 | Config overrides | Env-driven API/session/cache/browser overrides |
-| 3 | Config invalid env | Invalid URL / reconnect values throw |
-| 4 | Client uses LocalAuth | Session persistence is configured via `LocalAuth` |
-| 5 | Client cache options | Local web cache + Puppeteer options are wired |
-| 6 | Sender name preference | `pushname` wins over other contact fields |
-| 7 | Sender fallback | Contact-less messages fall back to WhatsApp id |
-| 8 | Build incoming-message payload | Sender metadata included when present |
-| 9 | Skip non-group chats | Direct messages are ignored |
-| 10 | Process group message | Group messages are logged and posted to `/api/incoming-messages` |
-| 11 | Skip empty group message | Blank group messages are ignored before any API call |
+| Area | Tests | What It Validates |
+|------|------:|-------------------|
+| Config | 3 | Defaults, environment overrides including temporary self-message capture, and invalid values |
+| Client options | 2 | `LocalAuth`, local web cache, and Puppeteer options |
+| Message handler | 10 | Sender attribution, payload building, group-JID filtering, self-message behavior, display-name requirement, event registration, storage, and empty-message handling |
+| Group display-name cache | 2 | Cached JID → display-name lookup and concurrent cache refresh coalescing |
 
 ## Database Seed Test (1)
 

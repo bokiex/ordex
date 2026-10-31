@@ -24,13 +24,11 @@ function createMessage(
 	return {
 		author: "6591111111@c.us",
 		body: "Mee kia 3 pkt",
+		from: "120363000000000000@g.us",
 		fromMe: false,
+		to: "120363000000000000@g.us",
 		id: { _serialized: "wamid.test" },
 		timestamp: 1_713_900_000,
-		getChat: async () => ({
-			isGroup: true,
-			name: "Orders Group",
-		}),
 		getContact: async () => ({
 			number: "6591111111",
 			pushname: "Alice",
@@ -102,6 +100,7 @@ describe("handleIncomingGroupMessage", () => {
 				fetchImpl,
 				includeSelfMessages: true,
 				logger: createLogger(),
+				resolveGroupDisplayName: async () => "Orders Group",
 				incomingMessagesEndpoint: "http://localhost:3000/api/incoming-messages",
 			},
 		);
@@ -115,10 +114,7 @@ describe("handleIncomingGroupMessage", () => {
 
 		const result = await handleIncomingGroupMessage(
 			createMessage({
-				getChat: async () => ({
-					isGroup: false,
-					name: "Direct Chat",
-				}),
+				from: "6591111111@c.us",
 			}),
 			{
 				fetchImpl,
@@ -128,6 +124,24 @@ describe("handleIncomingGroupMessage", () => {
 		);
 
 		expect(result).toEqual({ status: "skipped", reason: "not_group" });
+		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it("does not store a group message when its display name is unavailable", async () => {
+		const fetchImpl = vi.fn<typeof fetch>();
+		const logger = createLogger();
+
+		const result = await handleIncomingGroupMessage(createMessage(), {
+			fetchImpl,
+			logger,
+			incomingMessagesEndpoint: "http://localhost:3000/api/incoming-messages",
+			resolveGroupDisplayName: async () => undefined,
+		});
+
+		expect(result).toEqual({
+			status: "skipped",
+			reason: "group_name_unavailable",
+		});
 		expect(fetchImpl).not.toHaveBeenCalled();
 	});
 
@@ -146,6 +160,7 @@ describe("handleIncomingGroupMessage", () => {
 			fetchImpl,
 			logger,
 			incomingMessagesEndpoint: "http://localhost:3000/api/incoming-messages",
+			resolveGroupDisplayName: async () => "Orders Group",
 		});
 
 		expect(result).toEqual({ status: "processed", incomingMessageId: 42 });

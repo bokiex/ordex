@@ -76,7 +76,7 @@ All routes use TanStack Start's `server.handlers` pattern (not `createServerFn`)
 ```json
 {
   "message": "string (required)",
-  "customerNameHint": "string (optional) — WhatsApp group name",
+  "customerNameHint": "string (optional) — WhatsApp group display name",
   "senderName": "string (optional)",
   "from": "string (optional)",
   "timestamp": "string (optional)",

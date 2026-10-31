@@ -19,7 +19,8 @@ The project uses `whatsapp-web.js` v1.34.7. It includes the upstream [frozen-sta
 |------|---------|
 | `src/workers/whatsapp-group/config.ts` | Reads env vars and resolves API/session/cache config |
 | `src/workers/whatsapp-group/client.ts` | Creates a `whatsapp-web.js` client with `LocalAuth` |
-| `src/workers/whatsapp-group/handlers.ts` | Filters group messages, logs them, and posts them to `/api/incoming-messages` |
+| `src/workers/whatsapp-group/groupNames.ts` | Loads and caches visible group display names from WhatsApp Web's chat collection |
+| `src/workers/whatsapp-group/handlers.ts` | Filters group messages, resolves their display names, logs them, and posts them to `/api/incoming-messages` |
 | `src/workers/whatsapp-group/index.ts` | Main worker entrypoint, QR auth, lifecycle hooks, reconnect handling |
 | `src/workers/whatsapp-group/__tests__/` | Unit tests for config parsing, client options, and handler logic |
 
@@ -88,18 +89,19 @@ pnpm whatsapp:dev
 
 ## Runtime Behavior
 
-- Only group messages are processed (`chat.isGroup === true`)
+- Only group messages are processed. The worker detects group chats from the message chat JID (`@g.us`) rather than requiring a WhatsApp Web chat-model lookup.
 - Messages sent by the worker account itself are skipped by default
 - Set `WHATSAPP_INCLUDE_SELF_MESSAGES=true` only for testing. The worker then listens to WhatsApp Web's `message_create` event for messages with `fromMe === true`; inbound messages remain handled by the `message` event and are not duplicated.
-- Customer matching uses the WhatsApp group name
+- On `ready`, the worker loads a group-JID → display-name cache from WhatsApp Web's already-loaded chat collection. It refreshes the cache after group updates and when it misses a group.
+- A group message is stored only when its display name is resolved. This preserves the display name as `customerNameHint`, which is required for customer matching; the worker never substitutes the group JID.
 - Sender names still come from the WhatsApp contact (`pushname` → `name` → `shortName` → number) for attribution
-- Every group message is logged with timestamp, group name, sender, and flattened message body
+- Every group message is logged with timestamp, group display name, sender, and flattened message body
 - Incoming messages are stored by `POST`ing to `/api/incoming-messages` with:
 
 ```json
 {
   "message": "raw group message text",
-  "customerNameHint": "WhatsApp group name",
+  "customerNameHint": "WhatsApp group display name",
   "senderName": "sender display name",
   "from": "6591111111",
   "timestamp": "1713900000",

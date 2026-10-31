@@ -155,6 +155,8 @@ WHATSAPP_INCLUDE_SELF_MESSAGES=true pnpm whatsapp:start
 
 This subscribes to WhatsApp Web's `message_create` event for the linked account's messages without duplicating messages from other participants. Remove the variable after testing.
 
+The worker identifies group messages from their stable WhatsApp group JID and resolves the group display name from WhatsApp Web's loaded chat collection. It stores a group message only when that display name is available, preserving the display name as the customer hint required for matching.
+
 Common worker environment variables:
 
 ```bash
