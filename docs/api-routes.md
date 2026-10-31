@@ -104,14 +104,13 @@ Used by the WhatsApp group worker. This path does not parse with AI; it only sto
 
 **Generate order logic:**
 1. Loads selected `new` incoming messages in timestamp order
-2. Rejects selections spanning more than one sender
-3. Combines message bodies with newlines
-4. Parses combined text through `createOrderFromMessage`
-5. Creates a draft order
-6. Marks selected messages as `used` with `sourceOrderId`
+2. Rejects selections spanning more than one customer hint (falling back to sender name)
+3. Combines message bodies with newlines, then parses and matches them without holding a database transaction
+4. Rechecks message availability and atomically creates the draft and its lines and marks all source messages `used` with `sourceOrderId`
+5. Publishes change events after the transaction commits; a concurrent losing request receives `409`
 
 **Error Responses:**
-- `400` — Missing/invalid request fields, or messages from multiple senders
+- `400` — Missing/invalid request fields, or messages from multiple customer groups
 - `409` — One or more selected messages are unavailable or already used
 - `502` — Ollama failure during generate-order flow
 - `500` — DB error

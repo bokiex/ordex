@@ -49,18 +49,6 @@ export function createIncomingMessage(
 		.get();
 }
 
-export function markIncomingMessagesUsed(
-	ids: number[],
-	sourceOrderId: number,
-): void {
-	if (ids.length === 0) return;
-
-	db.update(incomingMessages)
-		.set({ status: "used", sourceOrderId })
-		.where(inArray(incomingMessages.id, ids))
-		.run();
-}
-
 export function deleteIncomingMessages(ids: number[]): number {
 	if (ids.length === 0) return 0;
 

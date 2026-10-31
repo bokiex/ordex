@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/index";
 import {
 	debtors,
@@ -153,6 +153,61 @@ export function createOrder(
 
 	// biome-ignore lint/style/noNonNullAssertion: just inserted
 	return getOrderWithItems(order.id)!;
+}
+
+class SourceMessagesUnavailable extends Error {}
+
+/** Atomically create a draft and consume its still-new source messages. */
+export function createOrderFromIncomingMessages(
+	data: NewOrder,
+	lineItems: Omit<NewOrderItem, "orderId">[],
+	messageIds: number[],
+): OrderWithItems | null {
+	if (messageIds.length === 0) return null;
+	try {
+		return db.transaction(
+			(tx) => {
+				const available = tx
+					.select({ id: incomingMessages.id })
+					.from(incomingMessages)
+					.where(
+						and(
+							inArray(incomingMessages.id, messageIds),
+							eq(incomingMessages.status, "new"),
+						),
+					)
+					.all();
+				if (available.length !== messageIds.length) return null;
+
+				const order = tx.insert(orders).values(data).returning().get();
+				for (const line of lineItems) {
+					tx.insert(orderItems)
+						.values({ ...line, orderId: order.id })
+						.run();
+				}
+				const updated = tx
+					.update(incomingMessages)
+					.set({ status: "used", sourceOrderId: order.id })
+					.where(
+						and(
+							inArray(incomingMessages.id, messageIds),
+							eq(incomingMessages.status, "new"),
+						),
+					)
+					.run();
+				if (updated.changes !== messageIds.length)
+					throw new SourceMessagesUnavailable();
+
+				const fullOrder = getOrderWithItems(order.id);
+				if (!fullOrder) throw new Error("Created order could not be loaded");
+				return fullOrder;
+			},
+			{ behavior: "immediate" },
+		);
+	} catch (error) {
+		if (error instanceof SourceMessagesUnavailable) return null;
+		throw error;
+	}
 }
 
 /** Update order header fields. Returns the updated row or undefined. */

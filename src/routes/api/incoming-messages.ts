@@ -5,14 +5,12 @@ import {
 	deleteIncomingMessages,
 	getIncomingMessagesByIds,
 	listIncomingMessages,
-	markIncomingMessagesUsed,
 } from "@/lib/db/incomingMessages";
 import {
 	publishIncomingMessage,
 	publishIncomingMessagesChanged,
-	publishOrdersChanged,
 } from "@/lib/events/incomingMessages";
-import { createOrderFromMessage } from "@/lib/orders";
+import { createOrderFromSelectedMessages } from "@/lib/orders";
 
 export const Route = createFileRoute("/api/incoming-messages")({
 	server: {
@@ -120,40 +118,15 @@ export const Route = createFileRoute("/api/incoming-messages")({
 					);
 				}
 
-				const messageIds = [...new Set(body.messageIds as number[])];
-				const messages = getIncomingMessagesByIds(messageIds).filter(
-					(message) => message.status === "new",
-				);
-
-				if (messages.length !== messageIds.length) {
-					return Response.json(
-						{ error: "One or more selected messages are unavailable" },
-						{ status: 409 },
-					);
-				}
-
-				const customerGroups = new Set(
-					messages.map(
-						(message) => message.customerNameHint || message.senderName,
-					),
-				);
-				if (customerGroups.size > 1) {
-					return Response.json(
-						{ error: "Selected messages must be from the same WhatsApp group" },
-						{ status: 400 },
-					);
-				}
-
-				const combinedMessage = messages
-					.map((message) => message.body)
-					.join("\n");
-				const result = await createOrderFromMessage({
-					message: combinedMessage,
-					customerNameHint:
-						messages[0]?.customerNameHint || messages[0]?.senderName,
-				});
+				const result = await createOrderFromSelectedMessages(body.messageIds);
 
 				if (!result.success) {
+					if (result.stage === "selection" || result.stage === "group") {
+						return Response.json(
+							{ error: result.error },
+							{ status: result.stage === "selection" ? 409 : 400 },
+						);
+					}
 					if (result.stage === "parse") {
 						console.error(
 							"[API /api/incoming-messages POST] Ollama error:",
@@ -174,16 +147,6 @@ export const Route = createFileRoute("/api/incoming-messages")({
 						{ status: 500 },
 					);
 				}
-
-				markIncomingMessagesUsed(messageIds, result.order.id);
-				publishIncomingMessagesChanged({
-					action: "used",
-					ids: messageIds,
-				});
-				publishOrdersChanged({
-					action: "created",
-					orderId: result.order.id,
-				});
 
 				return Response.json(result.order, { status: 201 });
 			},

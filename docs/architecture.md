@@ -83,7 +83,7 @@ Ordex now separates message receipt from order generation:
 2. Newly inserted messages publish an in-process `incoming-message` event.
 3. The Orders page listens to `GET /api/events/incoming-messages` with `EventSource` and refetches incoming messages when events arrive.
 4. Users select one or more messages from the same sender/customer in the Incoming Messages tab.
-5. `POST /api/incoming-messages` with `{ messageIds }` combines the selected bodies, runs AI parsing/matching, creates a draft order, and marks the source messages `used`.
+5. `POST /api/incoming-messages` with `{ messageIds }` combines the selected bodies and runs AI parsing/matching. After parsing, it rechecks availability and atomically creates the draft and its lines and marks the source messages `used`. Change events are published after commit; overlapping selections cannot both create a draft from the same message.
 
 The SSE broker is process-local. If the app is deployed with multiple server instances, replace it with shared pub/sub such as Redis, database notifications, or a managed event bus.
 

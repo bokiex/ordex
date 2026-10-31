@@ -2,7 +2,7 @@ import { searchDebtors } from "@/lib/db/debtors";
 import { getDebtorItemPreferences } from "@/lib/db/invoices";
 import { listItems } from "@/lib/db/items";
 import { createOrder } from "@/lib/db/orders";
-import type { OrderWithItems } from "@/lib/db/types";
+import type { NewOrder, NewOrderItem, OrderWithItems } from "@/lib/db/types";
 import { matchItem } from "@/lib/matcher/index";
 import { parseOrderMessage } from "@/lib/parser/index";
 
@@ -16,9 +16,38 @@ export type CreateOrderResult =
 	| { success: true; order: OrderWithItems }
 	| { success: false; error: string; stage: "parse" | "create" };
 
+type PreparedOrder = {
+	order: NewOrder;
+	lineItems: Omit<NewOrderItem, "orderId">[];
+};
+
+export type PrepareOrderResult =
+	| { success: true; prepared: PreparedOrder }
+	| { success: false; error: string; stage: "parse" | "create" };
+
 export async function createOrderFromMessage(
 	input: CreateOrderInput,
 ): Promise<CreateOrderResult> {
+	const result = await prepareOrderFromMessage(input);
+	if (!result.success) return result;
+
+	try {
+		return {
+			success: true,
+			order: createOrder(result.prepared.order, result.prepared.lineItems),
+		};
+	} catch (error) {
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown",
+			stage: "create",
+		};
+	}
+}
+
+export async function prepareOrderFromMessage(
+	input: CreateOrderInput,
+): Promise<PrepareOrderResult> {
 	const today = input.date ?? new Date().toISOString().split("T")[0];
 
 	let parsedOrder: Awaited<ReturnType<typeof parseOrderMessage>>;
@@ -68,19 +97,20 @@ export async function createOrderFromMessage(
 			};
 		});
 
-		const order = createOrder(
-			{
-				debtorCode,
-				debtorName,
-				agent,
-				docDate,
-				rawMessage: input.message,
-				status: "draft",
+		return {
+			success: true,
+			prepared: {
+				order: {
+					debtorCode,
+					debtorName,
+					agent,
+					docDate,
+					rawMessage: input.message,
+					status: "draft",
+				},
+				lineItems,
 			},
-			lineItems,
-		);
-
-		return { success: true, order };
+		};
 	} catch (error) {
 		return {
 			success: false,
