@@ -14,6 +14,7 @@ const migrationFiles = [
 	"0002_lovely_fenris.sql",
 	"0003_skinny_microchip.sql",
 	"0004_backfill_item_prices.sql",
+	"0005_clammy_elektra.sql",
 ];
 const tempDirectories: string[] = [];
 

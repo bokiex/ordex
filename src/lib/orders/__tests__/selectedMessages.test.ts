@@ -11,6 +11,13 @@ import {
 	it,
 	vi,
 } from "vitest";
+import type { IncomingMessage } from "@/lib/db/types";
+import {
+	groupConversationKey,
+	groupIncomingMessages,
+	metaConversationKey,
+} from "@/lib/incomingMessages/conversations";
+import { createMockTextMessage } from "@/lib/whatsapp/mock";
 
 const mocks = vi.hoisted(() => ({ parse: vi.fn(), failMatch: false }));
 vi.mock("@/lib/parser/index", () => ({ parseOrderMessage: mocks.parse }));
@@ -54,6 +61,7 @@ beforeAll(async () => {
 		"0002_lovely_fenris.sql",
 		"0003_skinny_microchip.sql",
 		"0004_backfill_item_prices.sql",
+		"0005_clammy_elektra.sql",
 	]) {
 		sqlite.exec(readFileSync(resolve("drizzle", migration), "utf8"));
 	}
@@ -92,15 +100,21 @@ afterAll(() => {
 	rmSync(directory, { recursive: true, force: true });
 });
 
-function addMessage(body: string, timestamp: string, group = "Customer") {
+function addMessage(
+	body: string,
+	timestamp: string,
+	group = "Customer",
+	conversationKey: string | null = groupConversationKey(`${group}@g.us`),
+) {
 	const result = sqlite
 		.prepare(`INSERT INTO incoming_messages
-		("from", sender_name, customer_name_hint, whatsapp_message_id, timestamp, body, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`)
+		("from", sender_name, customer_name_hint, conversation_key, whatsapp_message_id, timestamp, body, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
 		.run(
 			"sender",
 			"Sender",
 			group,
+			conversationKey,
 			`id-${Math.random()}`,
 			timestamp,
 			body,
@@ -136,6 +150,227 @@ function deferred<T>() {
 	});
 	return { promise, resolve };
 }
+
+describe("conversation identity across intake and selection", () => {
+	it("keeps renamed groups together, separates same-name sources, and isolates legacy messages", async () => {
+		type Handler = (context: { request: Request }) => Promise<Response>;
+		type RouteOptions = {
+			server: { handlers: { GET: Handler; POST: Handler } };
+		};
+		const incoming = (
+			(await import("@/routes/api/incoming-messages")).Route
+				.options as unknown as RouteOptions
+		).server.handlers;
+		const webhook = (
+			(await import("@/routes/api/webhook.whatsapp")).Route
+				.options as unknown as RouteOptions
+		).server.handlers;
+		const post = (body: object) => ({
+			request: new Request("http://localhost", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			}),
+		});
+		const first = await incoming.POST(
+			post({
+				message: "old",
+				groupJid: "123@g.us",
+				customerNameHint: "Old name",
+				timestamp: "100",
+				whatsappMessageId: "group-1",
+			}),
+		);
+		const renamed = await incoming.POST(
+			post({
+				message: "new",
+				groupJid: "123@g.us",
+				customerNameHint: "New name",
+				timestamp: "200",
+				whatsappMessageId: "group-2",
+			}),
+		);
+		const other = await incoming.POST(
+			post({
+				message: "other",
+				groupJid: "456@g.us",
+				customerNameHint: "New name",
+				timestamp: "300",
+				whatsappMessageId: "group-3",
+			}),
+		);
+		const legacy = await incoming.POST(
+			post({
+				message: "legacy",
+				customerNameHint: "New name",
+				timestamp: "400",
+				whatsappMessageId: "legacy-1",
+			}),
+		);
+		const legacy2 = await incoming.POST(
+			post({
+				message: "legacy 2",
+				customerNameHint: "New name",
+				timestamp: "401",
+				whatsappMessageId: "legacy-2",
+			}),
+		);
+		expect([
+			first.status,
+			renamed.status,
+			other.status,
+			legacy.status,
+			legacy2.status,
+		]).toEqual([201, 201, 201, 201, 201]);
+		const duplicate = await incoming.POST(
+			post({
+				message: "old",
+				groupJid: "123@g.us",
+				customerNameHint: "Old name",
+				whatsappMessageId: "group-1",
+			}),
+		);
+		expect(await duplicate.json()).toMatchObject({ duplicate: true });
+		expect(
+			(await incoming.POST(post({ message: "bad", groupJid: "123@c.us" })))
+				.status,
+		).toBe(400);
+
+		const meta = createMockTextMessage({
+			from: "6591111111",
+			name: "New name",
+			body: "meta",
+			timestamp: "500",
+		});
+		expect((await webhook.POST(post(meta))).status).toBe(200);
+		expect((await webhook.POST(post(meta))).status).toBe(200);
+		const metaOtherPhone = createMockTextMessage({
+			from: "6591111111",
+			name: "New name",
+			body: "meta other",
+			timestamp: "501",
+		});
+		metaOtherPhone.entry[0].changes[0].value.metadata.phone_number_id =
+			"another-phone";
+		expect((await webhook.POST(post(metaOtherPhone))).status).toBe(200);
+		const missingMeta = createMockTextMessage({
+			from: "6591111111",
+			name: "New name",
+			body: "meta missing",
+			timestamp: "502",
+		});
+		missingMeta.entry[0].changes[0].value.metadata.phone_number_id = "";
+		expect((await webhook.POST(post(missingMeta))).status).toBe(200);
+
+		const response = await incoming.GET({
+			request: new Request("http://localhost?status=new"),
+		});
+		const messages: IncomingMessage[] = await response.json();
+		expect(messages).toHaveLength(8);
+		const groups = groupIncomingMessages(messages);
+		expect(groups).toHaveLength(7);
+		const groupA = groups.find(
+			(group) => group.conversationKey === groupConversationKey("123@g.us"),
+		);
+		expect(groupA).toMatchObject({
+			customerName: "New name",
+			messages: expect.arrayContaining([
+				expect.objectContaining({ body: "old" }),
+				expect.objectContaining({ body: "new" }),
+			]),
+		});
+		expect(groupA?.messages).toHaveLength(2);
+		expect(
+			groups.filter((group) => group.conversationKey === null),
+		).toHaveLength(3);
+		expect(
+			groups.some(
+				(group) =>
+					group.conversationKey ===
+					metaConversationKey(
+						meta.entry[0].id,
+						meta.entry[0].changes[0].value.metadata.phone_number_id,
+						"6591111111",
+					),
+			),
+		).toBe(true);
+		expect(
+			groups.some(
+				(group) =>
+					group.conversationKey ===
+					metaConversationKey(meta.entry[0].id, "another-phone", "6591111111"),
+			),
+		).toBe(true);
+
+		if (!groupA) throw new Error("Group A not found");
+		const ids = groupA.messages.map((message) => message.id);
+		const result = await generate(ids);
+		expect(result).toMatchObject({
+			success: true,
+			order: { debtorName: "New name", rawMessage: "old\nnew" },
+		});
+		if (!result.success) throw new Error(result.error);
+		expect(deleteOrder(result.order.id).releasedMessageIds.sort()).toEqual(
+			ids.sort(),
+		);
+		const findId = (body: string) => {
+			const message = messages.find((entry) => entry.body === body);
+			if (!message) throw new Error(`Missing ${body}`);
+			return message.id;
+		};
+		for (const otherBody of [
+			"other",
+			"legacy",
+			"meta",
+			"meta other",
+			"meta missing",
+		]) {
+			expect(await generate([findId("new"), findId(otherBody)])).toMatchObject({
+				success: false,
+				stage: "group",
+			});
+		}
+		expect(
+			(
+				await incoming.POST(
+					post({ messageIds: [findId("new"), findId("other")] }),
+				)
+			).status,
+		).toBe(400);
+		expect(
+			await generate([findId("legacy"), findId("legacy 2")]),
+		).toMatchObject({ success: false, stage: "group" });
+		expect(await generate([findId("old")])).toMatchObject({
+			success: true,
+			order: { debtorName: "Old name" },
+		});
+		expect(await generate([findId("legacy")])).toMatchObject({ success: true });
+	});
+
+	it("scopes fallback fingerprints to the worker group while preserving deduplication", async () => {
+		type Handler = (context: { request: Request }) => Promise<Response>;
+		const incoming = (
+			(await import("@/routes/api/incoming-messages")).Route
+				.options as unknown as { server: { handlers: { POST: Handler } } }
+		).server.handlers.POST;
+		const post = (groupJid: string) =>
+			incoming({
+				request: new Request("http://localhost", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						groupJid,
+						from: "sender",
+						message: "same",
+						timestamp: "100",
+					}),
+				}),
+			});
+		expect((await post("1@g.us")).status).toBe(201);
+		expect((await post("1@g.us")).status).toBe(200);
+		expect((await post("2@g.us")).status).toBe(201);
+	});
+});
 
 describe("selected-message draft generation", () => {
 	it("commits ordered messages, matching and links before publishing, and restores messages on deletion", async () => {

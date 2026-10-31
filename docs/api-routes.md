@@ -77,6 +77,7 @@ All routes use TanStack Start's `server.handlers` pattern (not `createServerFn`)
 {
   "message": "string (required)",
   "customerNameHint": "string (optional) — WhatsApp group display name",
+  "groupJid": "string (optional) — stable WhatsApp group JID ending in @g.us",
   "senderName": "string (optional)",
   "from": "string (optional)",
   "timestamp": "string (optional)",
@@ -84,7 +85,7 @@ All routes use TanStack Start's `server.handlers` pattern (not `createServerFn`)
 }
 ```
 
-Used by the WhatsApp group worker. This path does not parse with AI; it only stores the message and returns `201` for a new row or `200` for a duplicate.
+Used by the WhatsApp group worker. This path does not parse with AI; it only stores the message and returns `201` for a new row or `200` for a duplicate. Missing `groupJid` is accepted for older workers, but creates an unknown-identity message that can only be selected individually. An invalid supplied JID returns `400`.
 
 **Delete incoming messages request:**
 ```json
@@ -104,13 +105,13 @@ Used by the WhatsApp group worker. This path does not parse with AI; it only sto
 
 **Generate order logic:**
 1. Loads selected `new` incoming messages in timestamp order
-2. Rejects selections spanning more than one customer hint (falling back to sender name)
-3. Combines message bodies with newlines, then parses and matches them without holding a database transaction
+2. Rejects selections spanning more than one source-qualified conversation; unknown-identity messages can only be selected individually
+3. Combines message bodies with newlines, then parses and matches them without holding a database transaction. The newest selected message's customer hint (or sender name) is used for matching.
 4. Rechecks message availability and atomically creates the draft and its lines and marks all source messages `used` with `sourceOrderId`
 5. Publishes change events after the transaction commits; a concurrent losing request receives `409`
 
 **Error Responses:**
-- `400` — Missing/invalid request fields, or messages from multiple customer groups
+- `400` — Missing/invalid request fields, or messages from different or unknown conversations
 - `409` — One or more selected messages are unavailable or already used
 - `502` — Ollama failure during generate-order flow
 - `500` — DB error

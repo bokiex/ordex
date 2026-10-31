@@ -26,10 +26,10 @@ The Orders page has three tabs:
 | Tab | Purpose |
 |-----|---------|
 | `Orders` | Draft orders generated from selected incoming messages |
-| `Incoming Messages` | Raw WhatsApp messages grouped by sender/customer; supports multi-select and AI order generation |
+| `Incoming Messages` | Raw WhatsApp messages grouped by source-qualified conversation; supports multi-select and AI order generation |
 | `Confirmed` | Confirmed/exported orders |
 
-Incoming messages are grouped by stable sender id (`from`). Users can select one or more messages from the same sender and click **Generate order**. The UI sends selected `messageIds` to `POST /api/incoming-messages`, opens the generated draft order in `OrderDetailModal`, and refreshes both order and incoming-message lists.
+Incoming messages are grouped by source-qualified conversation identity, not by name. Group-worker messages use the WhatsApp group JID; Meta messages use business account, receiving phone and sender IDs. Legacy and other unknown-identity messages appear separately and can only be selected individually. The UI displays the newest message's name for a group, disables generation across groups, sends selected `messageIds` to `POST /api/incoming-messages`, opens the generated draft order in `OrderDetailModal`, and refreshes both order and incoming-message lists. The server applies the same grouping rules independently.
 
 The page also opens an `EventSource` to `GET /api/events/incoming-messages`. When an `incoming-message` event arrives, it refetches `/api/incoming-messages?status=new` so new WhatsApp messages appear without a hard refresh. A 10s polling fallback still refreshes orders and incoming messages.
 

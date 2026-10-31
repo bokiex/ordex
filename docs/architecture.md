@@ -82,8 +82,10 @@ Ordex now separates message receipt from order generation:
 1. Meta webhook (`POST /api/webhook/whatsapp`) or WhatsApp group worker (`POST /api/incoming-messages`) stores raw text in `incoming_messages`.
 2. Newly inserted messages publish an in-process `incoming-message` event.
 3. The Orders page listens to `GET /api/events/incoming-messages` with `EventSource` and refetches incoming messages when events arrive.
-4. Users select one or more messages from the same sender/customer in the Incoming Messages tab.
+4. Users select messages from one source-qualified conversation in the Incoming Messages tab. WhatsApp group identities use the group JID; Meta identities use the business account, receiving phone ID, and sender. Unknown identities (including legacy rows and old worker requests) are isolated per message.
 5. `POST /api/incoming-messages` with `{ messageIds }` combines the selected bodies and runs AI parsing/matching. After parsing, it rechecks availability and atomically creates the draft and its lines and marks the source messages `used`. Change events are published after commit; overlapping selections cannot both create a draft from the same message.
+
+Group display names are not identity: the UI shows the most recent message's name for each conversation, while customer matching uses the most recent selected message's name (timestamp, then message ID). Original names remain on their messages. Apply migrations and update the web app before upgrading workers; old workers remain accepted but their messages are isolated.
 
 The SSE broker is process-local. If the app is deployed with multiple server instances, replace it with shared pub/sub such as Redis, database notifications, or a managed event bus.
 

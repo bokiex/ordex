@@ -7,7 +7,7 @@
 
 Runs a separate `whatsapp-web.js` worker process that listens to WhatsApp Web group messages, logs each inbound group message, and forwards the raw text to `POST /api/incoming-messages` with sender metadata.
 
-The worker does not parse messages or create orders directly. Messages land in the Incoming Messages tab, where users can select one or more fragments from the same customer and generate a draft order with AI.
+The worker does not parse messages or create orders directly. Messages land in the Incoming Messages tab, where users can select one or more fragments from the same conversation and generate a draft order with AI.
 
 This is separate from the existing Meta Cloud API webhook flow. The worker is useful when the source messages live in shared WhatsApp groups instead of a business webhook inbox.
 
@@ -93,7 +93,7 @@ pnpm whatsapp:dev
 - Messages sent by the worker account itself are skipped by default
 - Set `WHATSAPP_INCLUDE_SELF_MESSAGES=true` only for testing. The worker then listens to WhatsApp Web's `message_create` event for messages with `fromMe === true`; inbound messages remain handled by the `message` event and are not duplicated.
 - On `ready`, the worker loads a group-JID → display-name cache from WhatsApp Web's already-loaded chat collection. It refreshes the cache after group updates and when it misses a group.
-- A group message is stored only when its display name is resolved. This preserves the display name as `customerNameHint`, which is required for customer matching; the worker never substitutes the group JID.
+- A group message is stored only when its display name is resolved. This preserves the display name as `customerNameHint`, which is required for customer matching; the worker never substitutes the group JID. The separate `groupJid` identifies the conversation even if the group is renamed.
 - Sender names still come from the WhatsApp contact (`pushname` → `name` → `shortName` → number) for attribution
 - Every group message is logged with timestamp, group display name, sender, and flattened message body
 - Incoming messages are stored by `POST`ing to `/api/incoming-messages` with:
@@ -102,6 +102,7 @@ pnpm whatsapp:dev
 {
   "message": "raw group message text",
   "customerNameHint": "WhatsApp group display name",
+  "groupJid": "120363000000000000@g.us",
   "senderName": "sender display name",
   "from": "6591111111",
   "timestamp": "1713900000",
@@ -112,6 +113,10 @@ pnpm whatsapp:dev
 - The API returns success after storage; incomplete or non-order fragments do not fail AI parsing at receive time
 - A newly stored message publishes an `incoming-message` SSE event so the web app refreshes automatically
 - `disconnected` and `auth_failure` events schedule an automatic reconnect attempt after `WHATSAPP_RECONNECT_DELAY_MS`
+
+## Upgrade and older messages
+
+Apply migrations (`pnpm db:migrate`) and deploy the web app before restarting the updated worker. An older worker can still send requests without `groupJid`, but each such message is isolated and must be selected individually. Existing rows have unknown identity too: group JIDs cannot safely be reconstructed from names or senders. These rows and their order links are retained. Once the worker is upgraded, newly received messages can be grouped by JID; old unknown messages are not merged into those groups.
 
 ## Example `.env.local`
 

@@ -10,6 +10,7 @@ import {
 	publishIncomingMessage,
 	publishIncomingMessagesChanged,
 } from "@/lib/events/incomingMessages";
+import { groupConversationKey } from "@/lib/incomingMessages/conversations";
 import { createOrderFromSelectedMessages } from "@/lib/orders";
 
 export const Route = createFileRoute("/api/incoming-messages")({
@@ -54,6 +55,17 @@ export const Route = createFileRoute("/api/incoming-messages")({
 						);
 					}
 
+					if (
+						body.groupJid != null &&
+						(typeof body.groupJid !== "string" ||
+							!/^[^@\s]+@g\.us$/.test(body.groupJid))
+					) {
+						return Response.json(
+							{ error: "Invalid 'groupJid' field" },
+							{ status: 400 },
+						);
+					}
+
 					const senderName =
 						typeof body.senderName === "string" && body.senderName.trim()
 							? body.senderName.trim()
@@ -78,12 +90,20 @@ export const Route = createFileRoute("/api/incoming-messages")({
 						typeof body.whatsappMessageId === "string" &&
 						body.whatsappMessageId.trim()
 							? body.whatsappMessageId.trim()
-							: buildMessageFingerprint(from, timestamp, trimmedMessage);
+							: buildMessageFingerprint(
+									from,
+									timestamp,
+									trimmedMessage,
+									body.groupJid,
+								);
 
 					const message = createIncomingMessage({
 						from,
 						senderName,
 						customerNameHint,
+						conversationKey: body.groupJid
+							? groupConversationKey(body.groupJid)
+							: null,
 						whatsappMessageId,
 						timestamp,
 						body: trimmedMessage,
@@ -196,9 +216,12 @@ function buildMessageFingerprint(
 	from: string,
 	timestamp: string,
 	message: string,
+	groupJid?: string,
 ): string {
 	const hash = createHash("sha256")
-		.update(`${from}\n${timestamp}\n${message}`)
+		.update(
+			`${groupJid ? `${groupJid}\n` : ""}${from}\n${timestamp}\n${message}`,
+		)
 		.digest("hex");
 	return `worker:${hash}`;
 }

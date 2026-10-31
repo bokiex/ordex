@@ -17,6 +17,7 @@ SQLite database via Drizzle ORM + better-sqlite3. WAL mode enabled, foreign keys
 | `drizzle.config.ts` | Drizzle ORM config |
 | `drizzle/0000_right_revanche.sql` | Initial migration |
 | `drizzle/0001_daily_kang.sql` | Adds `incoming_messages` |
+| `drizzle/0005_clammy_elektra.sql` | Adds nullable source-qualified conversation identity |
 
 ## Connection (`src/db/index.ts`)
 
@@ -97,6 +98,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 | `from` | TEXT | NOT NULL | Sender phone/id |
 | `sender_name` | TEXT | NOT NULL | WhatsApp contact/group-worker display name |
 | `customer_name_hint` | TEXT | nullable | WhatsApp group name used for customer matching |
+| `conversation_key` | TEXT | nullable | Source-qualified group or Meta conversation; legacy/unknown messages remain null and are isolated |
 | `whatsapp_message_id` | TEXT | NOT NULL, UNIQUE | Deduplicates webhook/worker deliveries |
 | `timestamp` | TEXT | NOT NULL | WhatsApp timestamp string |
 | `body` | TEXT | NOT NULL | Raw message body |

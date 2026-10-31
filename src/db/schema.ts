@@ -69,6 +69,7 @@ export const incomingMessages = sqliteTable("incoming_messages", {
 	from: text("from").notNull(),
 	senderName: text("sender_name").notNull(),
 	customerNameHint: text("customer_name_hint"),
+	conversationKey: text("conversation_key"), // source-qualified identity; null for legacy messages
 	whatsappMessageId: text("whatsapp_message_id").notNull().unique(),
 	timestamp: text("timestamp").notNull(),
 	body: text("body").notNull(),

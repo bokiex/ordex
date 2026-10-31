@@ -137,6 +137,8 @@ export interface WebhookVerifyQuery {
 // ─── Helper to extract text messages from a webhook payload ──────────────────
 
 export function extractTextMessages(payload: WhatsAppWebhookPayload): Array<{
+	businessAccountId?: string;
+	phoneNumberId?: string;
 	from: string;
 	name: string;
 	messageId: string;
@@ -144,6 +146,8 @@ export function extractTextMessages(payload: WhatsAppWebhookPayload): Array<{
 	body: string;
 }> {
 	const results: Array<{
+		businessAccountId?: string;
+		phoneNumberId?: string;
 		from: string;
 		name: string;
 		messageId: string;
@@ -163,6 +167,8 @@ export function extractTextMessages(payload: WhatsAppWebhookPayload): Array<{
 			for (const msg of messages) {
 				if (msg.type === "text" && msg.text?.body) {
 					results.push({
+						businessAccountId: entry.id,
+						phoneNumberId: change.value.metadata?.phone_number_id,
 						from: msg.from,
 						name: contactMap.get(msg.from) ?? msg.from,
 						messageId: msg.id,

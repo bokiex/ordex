@@ -57,8 +57,10 @@ export function buildOrderRequest(
 	from?: string,
 	timestamp?: number,
 	whatsappMessageId?: string,
+	groupJid?: string,
 ): {
 	customerNameHint?: string;
+	groupJid?: string;
 	from?: string;
 	message: string;
 	senderName?: string;
@@ -67,6 +69,7 @@ export function buildOrderRequest(
 } {
 	return compactObject({
 		customerNameHint: customerNameHint.trim(),
+		groupJid,
 		from: normalizeWhatsAppId(from),
 		message,
 		senderName: senderName.trim(),
@@ -123,6 +126,7 @@ export async function handleIncomingGroupMessage(
 			message.author,
 			message.timestamp,
 			getMessageId(message),
+			groupChatId,
 		),
 		options,
 	);
@@ -178,6 +182,7 @@ export function registerWhatsAppGroupMessageHandler(
 async function postIncomingMessageRequest(
 	payload: {
 		customerNameHint?: string;
+		groupJid?: string;
 		from?: string;
 		message: string;
 		senderName?: string;

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createIncomingMessage } from "@/lib/db/incomingMessages";
 import { publishIncomingMessage } from "@/lib/events/incomingMessages";
+import { metaConversationKey } from "@/lib/incomingMessages/conversations";
 import {
 	extractTextMessages,
 	type WhatsAppWebhookPayload,
@@ -55,6 +56,11 @@ export const Route = createFileRoute("/api/webhook/whatsapp")({
 					const message = createIncomingMessage({
 						from: msg.from,
 						senderName: msg.name,
+						conversationKey: metaConversationKey(
+							msg.businessAccountId,
+							msg.phoneNumberId,
+							msg.from,
+						),
 						whatsappMessageId: msg.messageId,
 						timestamp: msg.timestamp,
 						body: msg.body,

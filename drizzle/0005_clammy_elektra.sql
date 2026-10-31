@@ -1,0 +1,1 @@
+ALTER TABLE `incoming_messages` ADD `conversation_key` text;

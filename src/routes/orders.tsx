@@ -20,6 +20,11 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusChip } from "@/components/shared/StatusChip";
 import { apiCall, useApi } from "@/hooks/useApi";
 import type { OrderWithItems } from "@/lib/db/types";
+import {
+	conversationGroupingKey,
+	describeConversation,
+	groupIncomingMessages,
+} from "@/lib/incomingMessages/conversations";
 
 export const Route = createFileRoute("/orders")({ component: OrdersPage });
 
@@ -40,17 +45,13 @@ interface IncomingMessageListItem {
 	from: string;
 	senderName: string;
 	customerNameHint: string | null;
+	conversationKey: string | null;
 	whatsappMessageId: string;
 	timestamp: string;
 	body: string;
 	status: string;
 	sourceOrderId: number | null;
 	createdAt: string;
-}
-
-interface IncomingMessageGroup {
-	customerName: string;
-	messages: IncomingMessageListItem[];
 }
 
 const POLL_INTERVAL = 10_000; // 10s
@@ -158,28 +159,12 @@ function OrdersPage() {
 		);
 	}, [incomingMessages, selectedMessageKeys]);
 	const selectedCustomerCount = new Set(
-		selectedMessages.map(
-			(message) => message.customerNameHint || message.senderName,
-		),
+		selectedMessages.map(conversationGroupingKey),
 	).size;
-	const groupedIncomingMessages = useMemo(() => {
-		const groups = new Map<string, IncomingMessageGroup>();
-
-		for (const message of incomingMessages ?? []) {
-			const customerName = message.customerNameHint || message.senderName;
-			const group = groups.get(customerName);
-			if (group) {
-				group.messages.push(message);
-			} else {
-				groups.set(customerName, {
-					customerName,
-					messages: [message],
-				});
-			}
-		}
-
-		return Array.from(groups.values());
-	}, [incomingMessages]);
+	const groupedIncomingMessages = useMemo(
+		() => groupIncomingMessages(incomingMessages ?? []),
+		[incomingMessages],
+	);
 
 	useEffect(() => {
 		const availableIds = new Set(
@@ -421,7 +406,8 @@ function OrdersPage() {
 					</span>
 					{selectedCustomerCount > 1 && (
 						<span className="text-danger">
-							Choose messages from one WhatsApp group only.
+							Choose messages from one conversation only. Messages with unknown
+							identity must be selected individually.
 						</span>
 					)}
 				</div>
@@ -474,7 +460,7 @@ function OrdersPage() {
 
 						return (
 							<section
-								key={group.customerName}
+								key={group.key}
 								className="overflow-hidden rounded-lg border border-gray-800 bg-gray-900/30"
 							>
 								<div className="flex flex-col gap-1 border-gray-800 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -482,6 +468,9 @@ function OrdersPage() {
 										<h3 className="font-semibold text-white">
 											{group.customerName}
 										</h3>
+										<p className="text-xs text-gray-400">
+											{describeConversation(group.conversationKey)}
+										</p>
 									</div>
 									<p className="text-gray-400 text-sm">
 										{groupSelectedKeys.size} of {group.messages.length} selected

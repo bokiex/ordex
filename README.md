@@ -1,6 +1,6 @@
 # Ordex
 
-Ordex turns WhatsApp customer order messages into reviewable draft orders. Incoming text messages are stored first, grouped by customer in the Orders page, and only sent to AI when a user selects the relevant message fragments and clicks **Generate order**.
+Ordex turns WhatsApp customer order messages into reviewable draft orders. Incoming text messages are stored first, grouped by conversation in the Orders page, and only sent to AI when a user selects the relevant message fragments and clicks **Generate order**.
 
 ## Prerequisites
 
@@ -104,8 +104,8 @@ pnpm db:migrate
 
 The main workflow is in **Orders**:
 
-- **Incoming Messages** shows raw WhatsApp messages grouped by sender/customer.
-- Select one or more messages from the same sender.
+- **Incoming Messages** shows raw WhatsApp messages grouped by stable conversation identity.
+- Select one or more messages from the same conversation. Messages without a known identity must be selected individually.
 - Click **Generate order** to combine those fragments, parse them with AI, and create a draft order.
 - The generated draft opens in the order detail modal for review and correction.
 
@@ -155,7 +155,7 @@ WHATSAPP_INCLUDE_SELF_MESSAGES=true pnpm whatsapp:start
 
 This subscribes to WhatsApp Web's `message_create` event for the linked account's messages without duplicating messages from other participants. Remove the variable after testing.
 
-The worker identifies group messages from their stable WhatsApp group JID and resolves the group display name from WhatsApp Web's loaded chat collection. It stores a group message only when that display name is available, preserving the display name as the customer hint required for matching.
+The worker forwards the stable WhatsApp group JID and resolves the group display name from WhatsApp Web's loaded chat collection. It stores a group message only when that display name is available, preserving the display name as the customer hint required for matching. Run `pnpm db:migrate` and upgrade the web app before restarting workers with the new version. Older workers can still send messages, but those messages have unknown conversation identity and must be selected individually.
 
 Common worker environment variables:
 

@@ -68,7 +68,7 @@ All types in `src/lib/whatsapp/types.ts`:
 - Calls `extractTextMessages()` on payload
 - Returns `200` with empty body for non-text messages
 - For each text message:
-  1. Inserts a row into `incoming_messages`
+  1. Inserts a row into `incoming_messages` with a Meta-qualified identity using the business account ID, receiving phone-number ID, and sender ID
   2. Ignores duplicate WhatsApp message IDs
   3. Publishes an `incoming-message` SSE event when a new row is stored
 - Returns JSON with storage results per message
@@ -78,8 +78,10 @@ All types in `src/lib/whatsapp/types.ts`:
 - Used by the Orders page Incoming Messages tab
 
 ### `POST /api/incoming-messages`
-- With `{ message, customerNameHint, from, timestamp, whatsappMessageId }`: stores a raw message from the WhatsApp group worker
-- With `{ messageIds: number[] }`: combines selected new messages from one sender, parses them with AI, creates a draft order, and marks those messages as `used`
+- With `{ message, customerNameHint, groupJid, from, timestamp, whatsappMessageId }`: stores a raw message from the WhatsApp group worker
+- With `{ messageIds: number[] }`: combines selected new messages from one known conversation, parses them with AI, creates a draft order, and marks those messages as `used`
+
+Meta and group-worker identities are distinct even when names match. If Meta account, receiving phone ID, or sender ID is unavailable, the message has unknown identity. Legacy rows and requests from older workers without a group JID are also unknown; each unknown message is displayed and selected separately, never grouped by name. Apply migrations and deploy the web app before upgrading the worker. For a renamed conversation, the newest selected message's display name is the customer hint.
 
 ### `GET /api/events/incoming-messages`
 - Server-Sent Events stream

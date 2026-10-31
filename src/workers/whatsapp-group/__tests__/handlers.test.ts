@@ -95,7 +95,7 @@ describe("handleIncomingGroupMessage", () => {
 		);
 
 		const result = await handleIncomingGroupMessage(
-			createMessage({ fromMe: true }),
+			createMessage({ fromMe: true, to: "123456@g.us", from: "myself@c.us" }),
 			{
 				fetchImpl,
 				includeSelfMessages: true,
@@ -107,6 +107,9 @@ describe("handleIncomingGroupMessage", () => {
 
 		expect(result).toEqual({ status: "processed", incomingMessageId: 43 });
 		expect(fetchImpl).toHaveBeenCalledOnce();
+		expect(
+			JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body)),
+		).toMatchObject({ groupJid: "123456@g.us" });
 	});
 
 	it("skips non-group messages", async () => {
@@ -177,6 +180,7 @@ describe("handleIncomingGroupMessage", () => {
 		expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toEqual({
 			customerNameHint: "Orders Group",
 			from: "6591111111",
+			groupJid: "120363000000000000@g.us",
 			message: "Mee kia 3 pkt",
 			senderName: "Alice",
 			timestamp: "1713900000",

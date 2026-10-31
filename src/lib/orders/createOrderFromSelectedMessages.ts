@@ -5,6 +5,11 @@ import {
 	publishIncomingMessagesChanged,
 	publishOrdersChanged,
 } from "@/lib/events/incomingMessages";
+import {
+	conversationGroupingKey,
+	conversationName,
+	latestConversationMessage,
+} from "@/lib/incomingMessages/conversations";
 import { prepareOrderFromMessage } from "./createOrderFromMessage";
 
 export type SelectedMessagesResult =
@@ -31,20 +36,20 @@ export async function createOrderFromSelectedMessages(
 		};
 	}
 
-	const customerGroups = new Set(
-		messages.map((message) => message.customerNameHint || message.senderName),
-	);
+	const customerGroups = new Set(messages.map(conversationGroupingKey));
 	if (customerGroups.size > 1) {
 		return {
 			success: false,
 			stage: "group",
-			error: "Selected messages must be from the same WhatsApp group",
+			error:
+				"Selected messages must be from the same known conversation; messages with unknown identity must be selected individually",
 		};
 	}
 
+	const latest = latestConversationMessage(messages);
 	const prepared = await prepareOrderFromMessage({
 		message: messages.map((message) => message.body).join("\n"),
-		customerNameHint: messages[0]?.customerNameHint || messages[0]?.senderName,
+		customerNameHint: latest ? conversationName(latest) : undefined,
 	});
 	if (!prepared.success) return prepared;
 
